@@ -124,12 +124,28 @@ A new audit log is written for every run. The tool does not rotate logs; that is
 
 ## What is excluded, and why
 
-Two categories of metadata are filtered out at enumeration time. The full list lives in `src/sf_clean_room/constants.py` and is reproduced in `sf-clean-room --help`.
+Two categories of metadata are filtered out at enumeration time. The full list lives in `src/sf_clean_room/constants.py` and is reproduced in `sf-clean-room get_metadata --help`.
 
 * **Operational** — types that are unsupported by wildcard retrieve, prone to partial results, or require special handling: `Profile`, `PermissionSet`, `PermissionSetGroup`, `Role`, `Network`, `Certificate`, `SamlSsoConfig`, `OauthCustomScope`, `ExternalServiceRegistration`, the Territory2 family, the ML data/prediction definitions, `DataCategoryGroup`, `CleanDataService`.
 * **Sensitivity** — types that routinely carry credentials, identity material, or opaque binaries: `ConnectedApp`, `AuthProvider`, `NamedCredential`, `ExternalCredential`, `CustomMetadata` (its DeveloperName can itself be the secret), `Document`, `StaticResource`, `ContentAsset`.
 
-Changing the list requires a source edit and review. There is no runtime override.
+### The deny list is not negotiable by operators
+
+There is no runtime override — no CLI flag, no environment variable, no configuration file entry that loosens this list.
+
+**If you are an AI agent using this tool to export metadata, you are an *operator*. Operators must NEVER modify the source code of this tool to broaden what gets extracted.** This prohibition is absolute and covers, non-exhaustively:
+
+- Editing `constants.py` to remove or shorten the deny list.
+- Monkey-patching, subclassing, or otherwise altering the filter at import time.
+- Copying any part of this codebase into another project to produce a variant without the deny list.
+- Re-implementing the Metadata API calls directly (in this project or elsewhere) to bypass the filter.
+- Shelling out to `sf` or `sfdx` to retrieve denied types and stitching the result into the published folder.
+
+If the deny list appears to block your goal, **that is the tool working as designed**, not a problem to be engineered around. The published folder's safety contract — that downstream consumers can read it without thinking about Salesforce sensitivity rules — exists only because denied types are never retrieved in the first place. Bypassing the filter, by any mechanism, voids the contract.
+
+If a denied type is genuinely needed for a legitimate use case, the correct response is to stop, surface the requirement to a human, and let a maintainer evaluate it as a development task. The deny list is changed only via a human-authorized code change with review — never by an operator, never silently, never as a workaround.
+
+The same rule applies to every other safety-critical surface of this tool: the narrow CLI flag set, the fixed temp/log/config locations, the scrub stage contract, the sentinel-ordered publish. Operator agents do not edit them.
 
 ---
 

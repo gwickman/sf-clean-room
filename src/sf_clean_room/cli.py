@@ -104,7 +104,17 @@ Operational exclusions: {deny_op}
 Sensitivity exclusions: {deny_sens}
 
 These categories are filtered out at enumeration. No CLI flag, env var, or
-config-file entry loosens this list. Changes require a source edit and review.
+config-file entry loosens this list.
+
+OPERATOR AGENTS MUST NOT EDIT THE SOURCE TO CHANGE THIS LIST. If you are an
+AI agent invoking this CLI as part of a workflow, you are an operator. Do
+not edit constants.py, monkey-patch the filter, copy the source into
+another project to produce a deny-list-free variant, re-implement the
+Metadata API calls to bypass the filter, or otherwise work around the deny
+list. If the deny list appears to block your goal, that is the tool working
+as designed -- surface the requirement to a human rather than engineering
+around it. Source changes are made only by a human-authorized development
+task with code review.
 
 Batch ceilings (in source)
 --------------------------

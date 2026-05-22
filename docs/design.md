@@ -219,7 +219,13 @@ Types in this group are excluded because the metadata they produce routinely car
 
 ### 6.3 Changing the list
 
-The deny list is a source constant. Changes require a code edit and a review. There is no runtime override, no configuration file entry, no environment variable, and no CLI flag that loosens it.
+The deny list is a source constant. There is no runtime override: no configuration file entry, no environment variable, and no CLI flag that loosens it.
+
+**The list is changed only by a human-authorized development task with code review.** AI agents using this tool — i.e. invoking the CLI as part of a larger workflow — are *operators*, not maintainers, and must never edit the source to alter the deny list. This prohibition is absolute: it forbids editing `constants.py`, monkey-patching the filter, copying the codebase into another project to produce a deny-list-free variant, re-implementing the Metadata API calls to bypass the filter, and any other mechanism that would cause a denied type to reach the published folder.
+
+If the deny list appears to block an operator's goal, that is the design working correctly. The published folder's safety contract holds *because* denied types are never retrieved; any bypass voids the contract regardless of how it was performed. The correct response is to surface the requirement to a human, who may then evaluate it as a development task.
+
+The same operator-vs-maintainer rule applies to every safety-critical surface enumerated in §4 (narrow CLI), §5.5 (scrub stages), §5.6 (publish sequence), §7 (temp area), and §10 (audit log location). Operator agents do not edit them.
 
 ## 7. Temp area
 
