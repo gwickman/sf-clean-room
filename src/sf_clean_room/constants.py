@@ -74,3 +74,81 @@ DEFAULT_TYPE_WEIGHT: Final[int] = 1
 
 def weight_for(type_name: str) -> int:
     return TYPE_WEIGHTS.get(type_name, DEFAULT_TYPE_WEIGHT)
+
+
+# ---------------------------------------------------------------------------
+# get_records (v2) — field-classification constants.
+#
+# These drive the recommendation engine in ``classify.py``. They are source
+# constants (like the metadata deny list) but, unlike the deny list, they
+# produce *recommendations* a reviewed plan may override (see docs/02-design-v2.md).
+# ---------------------------------------------------------------------------
+
+# Classifier actions.
+RAW: Final[str] = "RAW"
+DROP: Final[str] = "DROP"
+HASH_EMAIL: Final[str] = "HASH_EMAIL"
+HASH_ID: Final[str] = "HASH_ID"
+PASS: Final[str] = "PASS"
+DERIVE: Final[str] = "DERIVE"
+KEEP: Final[str] = "KEEP"  # plan-override alias meaning "keep raw" (resolves to PASS)
+
+CLASSIFIER_ACTIONS: Final[frozenset[str]] = frozenset(
+    {RAW, DROP, HASH_EMAIL, HASH_ID, PASS, DERIVE}
+)
+# Actions an operator may name in a plan override.
+OVERRIDE_ACTIONS: Final[frozenset[str]] = CLASSIFIER_ACTIONS | {KEEP}
+
+# Free-text essay thresholds (characters).
+ESSAY_TEXTAREA_LEN: Final[int] = 30_000  # textarea at/above this → DROP (hard default)
+ESSAY_NAMED_LEN: Final[int] = 1_000      # note/bio/statement-shaped at/above this → DROP
+
+# Substring patterns (matched case-insensitively against name OR label OR helpText).
+
+# Direct PII — names, addresses, phones, DOB/age, photo, social URLs.
+PII_DIRECT_PATTERNS: Final[tuple[str, ...]] = (
+    "firstname", "lastname", "middlename", "fullname", "salutation",
+    "preferred_first_name", "preferred_name", "name_suffix", "assistantname",
+    "nickname", "phoneticname", "maidenname",
+    "address", "street", "city", "postal", "postcode", "zip",
+    "phone", "mobile", "fax", "whatsapp", "telephone",
+    "birthdate", "birth_date", "date_of_birth", "dob",
+    "photourl", "photo", "headshot", "avatar",
+    "twitter", "linkedin", "imdb", "facebook", "instagram",
+    "personal_website", "profile_url", "link_to_video",
+)
+
+# Special-category data (GDPR Article 9). Overriding to keep these requires a
+# recorded justification (see plan.py / docs §6).
+PII_SPECIAL_PATTERNS: Final[tuple[str, ...]] = (
+    "ethnic", "ethnicity", "race",
+    "gender", "pronoun",
+    "disability", "disabilities", "accessibility_need",
+    "nationality", "citizenship",
+    "religion", "sexual_orientation", "political_opinion",
+    "health", "medical", "biometric", "genetic",
+)
+
+# Free-text essay name shapes (only DROP when also over ESSAY_NAMED_LEN).
+ESSAY_NAME_PATTERNS: Final[tuple[str, ...]] = (
+    "note", "notes", "comment", "description", "summary",
+    "bio", "biography", "personal_statement", "supporting_statement",
+    "essay", "feedback", "reason",
+)
+
+# Externally-meaningful identifiers → HASH_ID.
+IDENTIFIER_PATTERNS: Final[tuple[str, ...]] = (
+    "membership_number", "patron_number", "member_number",
+    "website_id", "events_perfect_id", "external_id", "sap_id", "sap_number",
+    "card_number", "cardid", "accountnumber", "bank_account", "iban", "bic", "swift",
+    "nationalinsurance", "national_insurance", "passportnumber", "passport_number",
+    "taxid", "tax_id", "vat", "duns", "iata",
+    "twitterhandle", "twitter_handle",
+)
+
+# PII-source field names to scan formula expressions for (formula-leak detection).
+FORMULA_LEAK_SOURCES: Final[tuple[str, ...]] = (
+    "FirstName", "LastName", "MiddleName", "Salutation", "Name", "Email",
+    "MobilePhone", "Phone", "Birthdate",
+    "MailingStreet", "MailingCity", "MailingPostalCode",
+)

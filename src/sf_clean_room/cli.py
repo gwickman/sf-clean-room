@@ -26,6 +26,7 @@ from sf_clean_room.audit import audit_log
 from sf_clean_room.config import load_config
 from sf_clean_room.constants import (
     API_VERSION,
+    CLASSIFIER_ACTIONS,
     MAX_COMPONENTS_PER_BATCH,
     MAX_WEIGHT_PER_BATCH,
     OPERATIONAL_DENY,
@@ -33,6 +34,7 @@ from sf_clean_room.constants import (
 )
 from sf_clean_room.paths import default_config_path, default_log_dir
 from sf_clean_room.pipeline import execute, make_run_paths, plan_only
+from sf_clean_room.records_extract import AUDIT_SENTINEL
 from sf_clean_room.session import get_session
 
 
@@ -52,6 +54,8 @@ def _top_epilog() -> str:
 Commands
 --------
   get_metadata    Export org metadata to --path with package.xml as the sentinel.
+  get_records     Export org record data to --path (anonymised in flight) with
+                  _field-handling-applied.csv as the sentinel.
 
 Authentication
 --------------
@@ -76,6 +80,7 @@ Exit codes
 Per-command help
 ----------------
   sf-clean-room get_metadata --help
+  sf-clean-room get_records --help
 """
 
 
@@ -128,6 +133,62 @@ Examples
 """
 
 
+def _get_records_description() -> str:
+    return (
+        "Export Salesforce record data for one org to --path, anonymised in "
+        "flight. Every field is classified (RAW/DROP/HASH/PASS/DERIVE); raw PII "
+        "is never written. The agent reads the published TSVs, never Salesforce."
+    )
+
+
+def _get_records_epilog() -> str:
+    actions = ", ".join(sorted(CLASSIFIER_ACTIONS))
+    return f"""
+Output contract
+---------------
+The publish folder (--path) holds one <Object>.tsv per object plus the audit.
+The sentinel file is {AUDIT_SENTINEL}: it is moved into --path LAST. A consumer
+that observes it may assume the extract completed and every field is accounted
+for; without it, the folder must not be read.
+
+How fields are handled (recommendations; a plan may override)
+-------------------------------------------------------------
+Actions: {actions}.
+Raw query results stay in memory only; DROP fields are never selected; HASH and
+DERIVE are applied before any value is written. Hash recipes are frozen and
+never salted so hashed columns join across sources.
+
+Special-category data (GDPR Art. 9) defaults to DROP. Keeping such a field
+requires a justification string in [reasons.<Object>] of the plan; without it,
+the field is downgraded to DROP and the downgrade is reported (the run does not
+abort).
+
+Workflow
+--------
+1. Plan:    sf-clean-room get_records --org-alias A --path out --only Account Contact \\
+                --plan plan.toml --dry-run
+            (probe + describe + classify; writes an editable plan; no values)
+2. Review:  edit [overrides.*] / [reasons.*] in plan.toml
+3. Extract: sf-clean-room get_records --org-alias A --path out --plan plan.toml
+4. Headless/scheduled: re-run step 3 unattended. New fields not in the plan are
+   classified by the conservative default and logged as drift - never leaked.
+
+--where (narrowing only; requires --only)
+-----------------------------------------
+Appended verbatim after FROM <object>. Rejected if it contains ';', SQL comment
+markers, DML/DDL verbs, or LIMIT/OFFSET. It narrows rows; it cannot expose a
+DROP/HASH field - the classifier still runs on every returned row.
+
+This subcommand is read-only: it issues describe and SELECT queries only.
+
+Examples
+--------
+  sf-clean-room get_records --org-alias myorg --path ./out --only Account --dry-run --plan p.toml
+  sf-clean-room get_records --org-alias myorg --path ./out --only Account Contact
+  sf-clean-room get_records --org-alias myorg --path ./out --only Contact --where "CreatedDate = THIS_YEAR"
+"""
+
+
 # ---------- parser construction ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -175,6 +236,39 @@ def build_parser() -> argparse.ArgumentParser:
     )
     gm.set_defaults(func=cmd_get_metadata)
 
+    gr = sub.add_parser(
+        "get_records",
+        help="Export org record data to --path, anonymised in flight (_field-handling-applied.csv is the sentinel).",
+        description=_get_records_description(),
+        epilog=_get_records_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gr.add_argument(
+        "--org-alias", required=True, metavar="ALIAS",
+        help="Salesforce CLI alias or username (must already be authenticated via `sf` or `sfdx`).",
+    )
+    gr.add_argument(
+        "--path", required=True, metavar="DIR",
+        help="Publish directory. Created if missing. Existing contents are deleted only at the publish step.",
+    )
+    gr.add_argument(
+        "--only", nargs="+", metavar="OBJECT", default=None,
+        help="Objects to extract. Required unless the plan file supplies [scope].objects.",
+    )
+    gr.add_argument(
+        "--where", metavar="PREDICATE", default=None,
+        help="SOQL predicate appended to every object query. Requires --only. Validated; read-only.",
+    )
+    gr.add_argument(
+        "--plan", metavar="FILE", default=None,
+        help="Classification plan (TOML). With --dry-run it is written; without, it is consumed.",
+    )
+    gr.add_argument(
+        "--dry-run", action="store_true",
+        help="Probe, describe, and classify only. Write the annotated plan and a summary. No record values, no publish-path mutation.",
+    )
+    gr.set_defaults(func=cmd_get_records)
+
     return parser
 
 
@@ -207,6 +301,59 @@ def cmd_get_metadata(args: argparse.Namespace) -> int:
 
         paths = make_run_paths(config.temp_root, publish_path, org_alias)
         execute(session, paths, log)
+        print(f"published: {paths.publish_path}")
+        print(f"audit log: {log.path}")
+        return 0
+
+
+def cmd_get_records(args: argparse.Namespace) -> int:
+    from sf_clean_room.plan import load_plan
+    from sf_clean_room.records_pipeline import (
+        RecordsRequest,
+        dry_run,
+        execute as records_execute,
+        resolve_scope,
+    )
+
+    org_alias = args.org_alias
+    publish_path = Path(args.path)
+    plan_path = Path(args.plan) if args.plan else None
+    config = load_config()
+    with audit_log(org_alias, tee_stream=sys.stderr) as log:
+        log.write(f"sf-clean-room {__version__} command=get_records")
+        log.write(
+            f"args: org_alias={org_alias} path={publish_path} only={args.only} "
+            f"where={args.where!r} plan={plan_path} dry_run={args.dry_run}"
+        )
+        log.write(f"temp_root={config.temp_root}")
+
+        # Object scope: --only, or [scope].objects from an existing plan.
+        existing_plan = load_plan(plan_path) if (plan_path and plan_path.exists()) else None
+        objects = resolve_scope(args.only, existing_plan)
+
+        if args.where and not args.only:
+            raise ValueError("--where requires --only")
+
+        log.section("session")
+        session = get_session(org_alias, api_version=API_VERSION)
+        log.write(
+            f"session resolved: instance_url={session.instance_url} "
+            f"username={session.username} org_id={session.org_id}"
+        )
+
+        if args.dry_run:
+            plan_text = dry_run(session, objects, plan_path, log)
+            print(plan_text)
+            print(f"\naudit log: {log.path}")
+            if plan_path:
+                print(f"plan written: {plan_path}")
+            return 0
+
+        req = RecordsRequest(
+            objects=objects, where=args.where, plan_path=plan_path, dry_run=False
+        )
+        paths = make_run_paths(config.temp_root, publish_path, org_alias)
+        records_execute(session, req, paths, log)
         print(f"published: {paths.publish_path}")
         print(f"audit log: {log.path}")
         return 0

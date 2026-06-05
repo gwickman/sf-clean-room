@@ -1,0 +1,14 @@
+# Live / regression test configuration for sf-clean-room.
+#
+# Real (network) tests and chatbot-driven regression runs use the org named
+# here. It must be an authenticated `sf` org. The test harness checks the org
+# is authenticated before using it; if it is not, live tests SKIP rather than
+# fail, and chatbot-driven testing should stop and report (never auto-login).
+#
+# Default: a dedicated dev-edition org that is safe to read from. Change
+# `test_org` to point the live tests at a different authenticated alias.
+
+test_org = "example-dev-edition"
+
+# Where live runs write their output. Relative to the repo root. Gitignored.
+output_dir = ".test-output"

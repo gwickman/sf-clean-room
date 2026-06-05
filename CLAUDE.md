@@ -1,10 +1,19 @@
 # CLAUDE.md — sf-clean-room
 
-Project-specific guidance for Claude Code working in this repository. Read `docs/design.md` before making changes; it is the authoritative contract. This file points at the parts of that contract that are easy to break by accident.
+Project-specific guidance for AI coding agents working in this repository. Read `docs/01-design-v1.md` (the `get_metadata` contract) and `docs/02-design-v2.md` (the `get_records` contract) before making changes; they are authoritative. This file points at the parts that are easy to break by accident. Testing is covered by `docs/regression-testing.md`.
+
+## Source control — exception to the no-commit policy
+
+The VRP AI Usage Policy hard-prohibits an AI agent from staging, committing, pushing, or opening PRs/MRs on a user's behalf. **This repository is an explicit exception to that prohibition.** sf-clean-room is not a client repository — it is internal tooling built to *support* the AI Usage Policy, by providing structurally-safe extraction of Salesforce metadata and records for AI consumption. An AI coding agent working in this repo may stage, commit, and push here when asked.
+
+Normal good practice still applies: never commit secrets or extracted data (`.test-output/` and credentials stay out of version control), write clear commit messages, and don't rewrite already-published history.
 
 ## What this tool is
 
-`sf-clean-room` is an **AI-operated CLI** that exports Salesforce metadata to a local folder which is safe for downstream automated consumers (other agents, code analysers, CI). The safety guarantee is structural: sensitive metadata categories never enter the published folder because they are filtered out at enumeration time, before any `retrieve` call.
+`sf-clean-room` is an **AI-operated CLI** with two commands under one dispatcher:
+
+- `get_metadata` — exports Salesforce **metadata** to a folder safe for downstream automated consumers. Safety is structural: sensitive metadata categories are filtered out at enumeration, before any `retrieve`. Sentinel: `package.xml`.
+- `get_records` — exports Salesforce **record data**, anonymised in flight: every field is classified and DROP/HASH applied before any value is written, so raw PII never reaches a published file. Read-only (describe + `SELECT` only). Sentinel: `_field-handling-applied.csv`.
 
 The operator of this CLI is an AI agent, not a person. Design decisions consistently favour predictability and discoverability over flexibility.
 
@@ -12,12 +21,14 @@ The operator of this CLI is an AI agent, not a person. Design decisions consiste
 
 These are load-bearing. If a change touches any of them, it is not a routine change; flag it.
 
-1. **Deny list is source-only.** The list of excluded metadata types (`docs/design.md` §6) is a constant in source. There must be no CLI flag, env var, config-file entry, or runtime mechanism that loosens it. "Add a flag to opt back in" is the wrong answer to every question.
+1. **Deny list is source-only.** The list of excluded metadata types (`docs/01-design-v1.md` §6) is a constant in source. There must be no CLI flag, env var, config-file entry, or runtime mechanism that loosens it. "Add a flag to opt back in" is the wrong answer to every question.
 2. **Two-phase output.** Retrieve and extract land in a per-run temp directory. The published path is only mutated at the final publish step (§5.6). Do not collapse these phases.
 3. **`package.xml` is the sentinel.** It is the *last* file moved into the published path. Consumers treat its presence as the signal that the publish completed. Anything that writes `package.xml` before the rest of the tree is in place is a bug.
 4. **Fail closed.** Any error in retrieve, extract, or scrub aborts the publish. The published path is either the previous run's output or the new run's output — never a partial mix (except in the narrow §8 atomicity gap, which is documented and bounded).
-5. **CLI surface is narrow.** The dispatcher exposes `--help` and `--version` at the top level, and the v1 command `get_metadata` exposes `--org-alias`, `--path`, `--dry-run`. Nothing else. In particular: no `--temp-root`, no `--exclude`, no `--include`, no `--skip-scrub`. The narrow surface is the safety story. New tools added later (e.g. `get_records`) are new subcommands under the same dispatcher, not new flags on existing ones.
-6. **No library API in v1.** Only the CLI entry point. Importing internals from another Python process is not a supported integration path.
+5. **CLI surface is narrow.** The dispatcher exposes `--help` and `--version` at the top level. `get_metadata` exposes `--org-alias`, `--path`, `--dry-run` — nothing else (no `--temp-root`, `--exclude`, `--include`, `--skip-scrub`). `get_records` exposes `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run` — all of which are *narrowing/specification* inputs (object scope, row predicate, the reviewed classification plan); none disables the classifier or the read-only/no-raw-dump guarantees. New tools are new subcommands, not new flags on existing ones.
+6. **`get_records` is read-only and never dumps raw values.** It issues only describe and `SELECT` queries; there is no write path. The raw query result stays in process memory; DROP fields are never selected; HASH/DERIVE is applied before any value is written. Do not add a path that writes a raw, unclassified extract to disk.
+7. **The classifier is source-controlled.** Its rules live in `constants.py`/`classify.py` and produce *recommendations*. A reviewed plan may override them, but special-category keeps require a justification (else they downgrade to DROP) — do not remove that enforcement, and do not make the classifier itself runtime-overridable.
+8. **No library API.** Only the CLI entry point. Importing internals from another Python process is not a supported integration path.
 
 ## `--help` is part of the contract
 
@@ -74,4 +85,4 @@ Verify with `python -c "import sf_clean_room.audit, inspect; print(inspect.getfi
 
 ## When in doubt
 
-Re-read `docs/design.md`. If the design is ambiguous, surface the ambiguity rather than picking silently. The design is short on purpose; gaps are usually intentional and worth a conversation.
+Re-read `docs/01-design-v1.md`. If the design is ambiguous, surface the ambiguity rather than picking silently. The design is short on purpose; gaps are usually intentional and worth a conversation.

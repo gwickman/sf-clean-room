@@ -9,7 +9,7 @@ description = "Export pre-scrubbed Salesforce metadata to a folder safe for auto
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-authors = [{ name = "Grant Wickman" }]
+authors = [{ name = "sf-clean-room maintainers" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -37,3 +37,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "live: hits a real Salesforce org (the alias in tests/live_org.toml); skipped automatically when that org is not authenticated.",
+]

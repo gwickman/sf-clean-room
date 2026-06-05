@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# sf-clean-room live/regression test output (never committed)
+.test-output/

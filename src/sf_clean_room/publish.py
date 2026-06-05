@@ -27,29 +27,31 @@ def _clear_directory_contents(directory: Path) -> None:
             child.unlink()
 
 
-def publish(temp_dir: Path, publish_path: Path) -> None:
-    """Move every entry in ``temp_dir`` into ``publish_path``, with
-    ``package.xml`` moved last.
+def publish(temp_dir: Path, publish_path: Path, sentinel_name: str = SENTINEL_NAME) -> None:
+    """Move every entry in ``temp_dir`` into ``publish_path``, with the sentinel
+    file moved last.
 
-    Raises ``PublishError`` if ``package.xml`` is not present in ``temp_dir``.
+    ``sentinel_name`` defaults to ``package.xml`` (v1 / get_metadata); v2 /
+    get_records passes ``_field-handling-applied.csv``. Raises ``PublishError``
+    if the sentinel is not present in ``temp_dir``.
     """
     temp_dir = temp_dir.resolve()
     publish_path = publish_path.resolve()
 
-    sentinel_src = temp_dir / SENTINEL_NAME
+    sentinel_src = temp_dir / sentinel_name
     if not sentinel_src.exists():
-        raise PublishError(f"temp tree is missing {SENTINEL_NAME}; refusing to publish")
+        raise PublishError(f"temp tree is missing {sentinel_name}; refusing to publish")
 
     _clear_directory_contents(publish_path)
 
     for child in sorted(temp_dir.iterdir(), key=lambda p: p.name):
-        if child.name == SENTINEL_NAME:
+        if child.name == sentinel_name:
             continue
         dest = publish_path / child.name
         shutil.move(str(child), str(dest))
 
     # Sentinel last.
-    shutil.move(str(sentinel_src), str(publish_path / SENTINEL_NAME))
+    shutil.move(str(sentinel_src), str(publish_path / sentinel_name))
 
 
 def remove_empty_temp(temp_dir: Path) -> None:

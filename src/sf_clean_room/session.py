@@ -6,16 +6,11 @@ given alias or username.
 """
 from __future__ import annotations
 
-import json
-import os
-import re
-import shutil
-import subprocess
 import time
 from dataclasses import dataclass
 from typing import Optional
 
-_ANSI_RE = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
+from sf_clean_room.sfcli import SfCliError, run_cli_json, which_cli
 
 
 class SessionError(RuntimeError):
@@ -33,37 +28,17 @@ class Session:
 
 
 def _which_cli() -> tuple[str, str]:
-    for exe, flavor in (("sf", "sf"), ("sfdx", "sfdx")):
-        p = shutil.which(exe)
-        if p:
-            return p, flavor
-    raise SessionError("Salesforce CLI not found on PATH. Install sf or sfdx and authenticate first.")
+    try:
+        return which_cli()
+    except SfCliError as e:
+        raise SessionError(str(e)) from e
 
 
 def _run_cli_json(cmd: list[str]) -> dict:
-    env = os.environ.copy()
-    env.update({
-        "SF_DISABLE_TELEMETRY": "true",
-        "SFDX_DISABLE_TELEMETRY": "true",
-        "SF_LOG_LEVEL": "error",
-        "SFDX_JSON_TO_STDOUT": "true",
-        "FORCE_COLOR": "0",
-    })
-    proc = subprocess.run(cmd, capture_output=True, text=True, env=env, check=False)
-    if proc.returncode != 0:
-        raise SessionError(
-            f"Salesforce CLI failed ({proc.returncode}): {' '.join(cmd)}\nSTDERR:\n{proc.stderr.strip()}"
-        )
-    cleaned = proc.stdout.lstrip("﻿")
-    cleaned = _ANSI_RE.sub("", cleaned)
-    first = cleaned.find("{")
-    last = cleaned.rfind("}")
-    if first != -1 and last != -1 and last > first:
-        cleaned = cleaned[first : last + 1]
     try:
-        return json.loads(cleaned.strip())
-    except json.JSONDecodeError as e:
-        raise SessionError(f"Salesforce CLI returned non-JSON output: {cleaned[:400]}") from e
+        return run_cli_json(cmd)
+    except SfCliError as e:
+        raise SessionError(str(e)) from e
 
 
 def get_session(

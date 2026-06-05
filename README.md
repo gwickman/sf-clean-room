@@ -6,7 +6,10 @@ The safety guarantee is structural, not behavioural. Metadata categories that ro
 
 `sf-clean-room` is an **AI-operated CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly.
 
-This is v1: metadata export only. Later versions will extend the same temp-then-publish pipeline to record (data) extraction with PII hashing and secret scanning.
+Two commands share one dispatcher:
+
+* `get_metadata` — export org **metadata** (structure: objects, fields, Apex, flows) safely. The sentinel is `package.xml`.
+* `get_records` — export org **record data**, anonymised in flight: every field is classified and DROP/HASH applied before any value is written, so raw PII never reaches a file the consumer reads. The sentinel is `_field-handling-applied.csv`.
 
 ---
 
@@ -23,7 +26,7 @@ enumerate → filter → batch → retrieve+extract (to temp) → scrub (no-op i
 * **Scrub** — pluggable stage list. v1 ships one no-op stage; the contract exists so secret scanners, PII hashers, and content rewriters can plug in later without changing the consumer-visible output.
 * **Publish** — clear the publish directory, move every file into it, and move `package.xml` **last**. The presence of `package.xml` is the consumer's signal that the publish is complete.
 
-Fail-closed: any error before publish leaves the publish path untouched (with one narrow caveat documented in `docs/design.md` §8). The per-run temp directory is retained on failure for inspection.
+Fail-closed: any error before publish leaves the publish path untouched (with one narrow caveat documented in `docs/01-design-v1.md` §8). The per-run temp directory is retained on failure for inspection.
 
 ---
 
@@ -51,7 +54,12 @@ sf-clean-room --help                       # top-level: lists available commands
 sf-clean-room get_metadata --help          # per-command: full contract
 ```
 
-v1 ships one command: `get_metadata`. Future versions will add commands such as `get_records` under the same dispatcher (shared authentication, shared audit log, same deny-list philosophy).
+Both commands share authentication, the audit log, the temp-then-publish discipline, and the sentinel-last publish rule:
+
+```bash
+sf-clean-room get_metadata --help          # metadata export contract
+sf-clean-room get_records  --help          # record export contract
+```
 
 ---
 
@@ -97,7 +105,61 @@ A consumer should **not** act on a `--path` that lacks `package.xml`: the publis
 ### Exit codes
 
 * `0` — publish completed (including the "no components after filtering" case, which still produces an empty manifest).
-* non-zero — aborted. Publish path is untouched, or — in the narrow atomicity gap described in `docs/design.md` §8 — missing its `package.xml` sentinel. Either way, the sentinel rule is sound: no `package.xml`, no consume.
+* non-zero — aborted. Publish path is untouched, or — in the narrow atomicity gap described in `docs/01-design-v1.md` §8 — missing its `package.xml` sentinel. Either way, the sentinel rule is sound: no `package.xml`, no consume.
+
+---
+
+## Records (`get_records`)
+
+`get_records` exports record **data**, anonymised in flight. The classifier
+reads each field's describe metadata and recommends an action — `RAW` (Salesforce
+ids), `DROP` (direct PII, special-category, essays, formula-leaks), `HASH_EMAIL`
+/ `HASH_ID` (frozen, never-salted SHA-256 so hashed columns join across sources),
+`PASS` (analytical signal), `DERIVE` (opt-in). Raw query results stay in process
+memory only; DROP fields are never selected; hashing happens before any value is
+written. The tool is **read-only** — it issues describe and `SELECT` queries only.
+
+The workflow is recommend → review → extract, and the reviewed plan is a
+persistable, schedulable specification:
+
+```bash
+# 1. Plan (dry-run): probe + describe + classify. Writes an editable plan. No record values are read.
+sf-clean-room get_records --org-alias myorg --path ./out --only Account Contact --plan plan.toml --dry-run
+
+# 2. Review: edit [overrides.*] / [reasons.*] in plan.toml as needed.
+
+# 3. Extract: apply the plan, write one <Object>.tsv per object + the audit sentinel.
+sf-clean-room get_records --org-alias myorg --path ./out --plan plan.toml
+
+# 3b. Headless/scheduled: re-run step 3 unattended. Fields added to the org after the
+#     plan was written are classified by the conservative default and logged as drift — never leaked.
+```
+
+`--only` selects objects (required unless the plan supplies `[scope].objects`).
+`--where "<predicate>"` narrows rows (requires `--only`; validated — no `;`, no
+SQL comments, no DML/DDL, no `LIMIT`/`OFFSET`). Keeping a special-category field
+requires a justification in `[reasons.<Object>]`; without one the field is
+downgraded to DROP and the downgrade is reported (the run does not abort).
+
+The sentinel is `_field-handling-applied.csv` (the audit), moved into `--path`
+last. No sentinel ⇒ do not consume. See `docs/02-design-v2.md` for the full
+contract.
+
+---
+
+## Testing
+
+```bash
+pip install -e . --config-settings editable_mode=compat   # editable install resolves into src/
+python -m pytest -q                                        # offline suite (no org needed)
+```
+
+Real / regression testing against a live org is **chatbot-driven** and described
+in `docs/regression-testing.md`. The test org is configured in
+`tests/live_org.toml` (default `example-dev-edition`); live `pytest` tests
+(`-m live`) and the chatbot-driven steps auto-skip / stop when that org is not
+authenticated — the harness never logs in for you. Live output lands under
+`.test-output/` (gitignored).
 
 ---
 
@@ -151,6 +213,8 @@ The same rule applies to every other safety-critical surface of this tool: the n
 
 ## Design
 
-`docs/design.md` is the authoritative contract: pipeline, exclusions, failure modes, output guarantee, audit log, atomicity gap, and the constraints that the CLI surface deliberately omits.
+`docs/01-design-v1.md` is the authoritative contract for `get_metadata`: pipeline, exclusions, failure modes, output guarantee, audit log, atomicity gap, and the constraints that the CLI surface deliberately omits.
+
+`docs/02-design-v2.md` is the authoritative contract for `get_records`: the classifier, the plan/override model, special-category handling, headless runs, and the output guarantee. `docs/ideation/` holds the goals/principles behind both; `docs/docs-change-log.md` holds decision history; `docs/regression-testing.md` is the testing guide.
 
 `CLAUDE.md` lists the invariants that are easy to break by accident and is intended for any code-generation agent working in this repo.
