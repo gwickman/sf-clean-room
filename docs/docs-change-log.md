@@ -6,6 +6,63 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-06-05 — `get_metadata` v2.1: limited-permissions resilience (implemented)
+
+**Change.** Implemented v2.1 (`docs/03-design-2.1.md`): per-type fault tolerance
+for `get_metadata` so a limited-permission identity gets a usable, self-describing
+publish instead of aborting on the first permission gap. New modules `skip_log.py`
+(the run's `SkipLog`) and `manifest.py` (build/parse `package.xml`); `constants.py`
+gained `ALWAYS_PROBE_TYPES`, `SYNTHETIC_FOLDERS`, `SKIP_BUCKETS`,
+`MAX_SKIP_DETAIL_LEN`, `classify_skip_bucket`; `enumerate_md.py` is now
+fault-tolerant (skip-and-log per type, always-probe union, folder fault tolerance
++ synthetic folders + folder-as-type) and returns `(members, SkipLog)`;
+`pipeline.py` does component-accurate partial-retrieve detection and writes/publishes
+`_skipped-types.csv`; `publish.py` gained `preceding_artefacts`; `cli.py` help
+documents the skip log (generated from `SKIP_BUCKETS`).
+
+**Design changes applied during review (the three I flagged), before building:**
+1. **Partial-retrieve is component-accurate.** Originally specified as a disk
+   file-count vs manifest-member-count comparison — which the POC data showed is
+   misleading (batch 1: 7,347 components vs `files_retrieved` 252, because a class
+   is two files, a bundle many, an object one). Changed to diff the
+   Salesforce-**returned** `package.xml` (inside the retrieve zip) against the
+   requested manifest, per type — the same unit on both sides. As a bonus this fixed
+   a latent multi-batch bug (the POC and v1 built the published `package.xml` from
+   *requested* members; it is now built from *retrieved* members and never overstates).
+2. **Verbatim error detail moved out of the published CSV.** `_skipped-types.csv`
+   now carries `type,bucket,components_requested,components_retrieved` only; the
+   verbatim SOAP message goes to the audit log (v1 §9: diagnostics live in the audit,
+   not the consumer folder). Keeps incidental detail (instance hints, long messages)
+   out of the folder downstream consumers read.
+3. **Explicit deny-list guarantee.** Documented and tested that no deny-listed type
+   ever appears in `_skipped-types.csv` (denied types are filtered before enumeration,
+   so never attempted, never errored, never recorded) — preserving v1 §9's intent.
+
+**Further reconciliation (architecture).** The design (from a CLI-based POC) assumed
+a `sf project retrieve start` registry-miss strip-and-retry pre-flight. sf-clean-room
+retrieves via the **SOAP Metadata API directly** (`soap.py`/`retrieve.py`), which has
+no client-side type registry — so the pre-flight is **N/A and omitted**. The
+`registry_miss` bucket stays in the published schema, **reserved** (never populated on
+the SOAP path), so the contract is forward-compatible if a CLI retrieve is ever added.
+The ideation/design/plan were updated to reflect this.
+
+**Principle added (C7).** `00-design-principles.md` now requires every change to
+include and enhance regression testing — offline plus a live check against the test
+org — and to update `regression-testing.md` in the same change when a capability is
+added. v2.1 is the first change held to it: it ships offline tests for every new path
+(`test_skip_log`, `test_manifest`, `test_enumerate`, `test_pipeline_v21`, a help test)
+and a live enumerate test, and updates `regression-testing.md` §4.
+
+**Testing.** 152 offline tests pass (incl. full v1 + v2 regression); 3 live tests pass
+against `example-dev-edition` (get_records ×2, get_metadata enumerate ×1). Chatbot-driven
+real `get_metadata` run verified the published `package.xml` + header-only/partial-only
+`_skipped-types.csv`. **Known gap:** no limited-permission live fixture is authenticated
+in the project-profile profile, so the limited-permission live path is covered by mocks
+offline but not yet exercised against a real limited identity (would need such an alias
+authenticated; the tool never auto-authenticates).
+
+---
+
 ## 2026-06-04 — `get_records` (v2) designed, implemented, and tested
 
 **Change.** Added the v2 contract `docs/02-design-v2.md` and implemented the

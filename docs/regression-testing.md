@@ -137,18 +137,47 @@ every returned row. Confirm a bad predicate is refused before any query, e.g.
 `--where "Id != null; DROP TABLE x"` exits non-zero with a validation error and
 writes nothing.
 
-## 4. Chatbot-driven live regression — `get_metadata` (v1)
+## 4. Chatbot-driven live regression — `get_metadata` (v1 + v2.1 limited-permissions)
 
-Confirm v1 still works after any shared-code change (`publish.py`, `session.py`,
-`sfcli.py`, `config.py`, `audit.py`):
+Confirm metadata export still works after any shared-code change (`publish.py`,
+`session.py`, `sfcli.py`, `config.py`, `audit.py`, `enumerate_md.py`,
+`pipeline.py`):
 
 ```powershell
 sf-clean-room get_metadata --org-alias example-dev-edition --path .test-output\meta --dry-run
 sf-clean-room get_metadata --org-alias example-dev-edition --path .test-output\meta
 ```
 
-Verify: dry-run prints a batch plan; the real run publishes a metadata tree with
-`package.xml` present at the root (the v1 sentinel). No `package.xml` ⇒ failed.
+Verify:
+- Dry-run prints a batch plan **and** a "would-be `_skipped-types.csv`" block
+  (empty for a full-permission identity). Enumeration must not abort.
+- The real run publishes a metadata tree with `package.xml` at the root (the
+  sentinel). No `package.xml` ⇒ failed.
+- **`_skipped-types.csv` is present** at the root, header
+  `type,bucket,components_requested,components_retrieved`. For a full-permission
+  dev org it is header-only or contains only genuine `partial_retrieve` rows.
+- Every `bucket` value is in `SKIP_BUCKETS`; **no deny-listed type appears** in
+  the file. Verbatim error detail is in the **audit log**, not this CSV.
+- `package.xml` lists only what was retrieved (never overstates).
+
+### v2.1 acceptance — limited-permission identity (when a fixture exists)
+v2.1's reason for being is graceful degradation under limited permissions. If a
+limited-permission alias is authenticated (e.g. a custom-profile identity), run
+the two commands above against it and confirm: the run does **not** abort;
+`package.xml` lands; `_skipped-types.csv` is **non-empty** with rows in
+`insufficient_access` and/or `invalid_type`; exit 0. If no such fixture is
+authenticated, **say so explicitly and skip** — never auto-authenticate one
+(principle C7: surface, don't hide). The offline suite
+(`tests/test_enumerate.py`, `tests/test_pipeline_v21.py`) covers the
+limited-permission code paths with mocks regardless.
+
+> **STATUS (cannot yet run): no limited-permission live fixture.** As of the
+> v2.1 build, no limited-permission alias is authenticated in the project-profile
+> profile, so this live acceptance has **not** been run against a real limited
+> identity — it is covered offline by mocks only. To enable it, authenticate a
+> dedicated limited-profile user (ideally on `example-dev-edition`) and add a
+> `limited_test_org` key to `tests/live_org.toml`. Do not point it at a client
+> production org. Until then, report this step as "not run — no fixture".
 
 ## 5. Reporting back
 

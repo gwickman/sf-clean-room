@@ -38,6 +38,19 @@ def test_get_metadata_help_runs_without_auth(capsys):
     assert "Deny list" in out
 
 
+def test_get_metadata_help_documents_skip_log(capsys):
+    # v2.1: per-command help documents the limited-permission skip log, generated
+    # from the SKIP_BUCKETS constant so it cannot drift from runtime.
+    from sf_clean_room.constants import SKIP_BUCKETS
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["get_metadata", "--help"])
+    out = capsys.readouterr().out
+    assert "_skipped-types.csv" in out
+    for bucket in SKIP_BUCKETS:
+        assert bucket in out
+
+
 def test_no_command_prints_help_and_returns_nonzero(capsys):
     rc = main([])
     assert rc != 0

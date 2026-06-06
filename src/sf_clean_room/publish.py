@@ -27,13 +27,20 @@ def _clear_directory_contents(directory: Path) -> None:
             child.unlink()
 
 
-def publish(temp_dir: Path, publish_path: Path, sentinel_name: str = SENTINEL_NAME) -> None:
+def publish(
+    temp_dir: Path,
+    publish_path: Path,
+    sentinel_name: str = SENTINEL_NAME,
+    preceding_artefacts: tuple[str, ...] = (),
+) -> None:
     """Move every entry in ``temp_dir`` into ``publish_path``, with the sentinel
     file moved last.
 
     ``sentinel_name`` defaults to ``package.xml`` (v1 / get_metadata); v2 /
-    get_records passes ``_field-handling-applied.csv``. Raises ``PublishError``
-    if the sentinel is not present in ``temp_dir``.
+    get_records passes ``_field-handling-applied.csv``. ``preceding_artefacts``
+    are contract files (e.g. ``_skipped-types.csv``) moved in *before* the
+    sentinel, so a consumer that observes the sentinel also sees them. Raises
+    ``PublishError`` if the sentinel is not present in ``temp_dir``.
     """
     temp_dir = temp_dir.resolve()
     publish_path = publish_path.resolve()
@@ -42,13 +49,20 @@ def publish(temp_dir: Path, publish_path: Path, sentinel_name: str = SENTINEL_NA
     if not sentinel_src.exists():
         raise PublishError(f"temp tree is missing {sentinel_name}; refusing to publish")
 
+    held = {sentinel_name, *preceding_artefacts}
     _clear_directory_contents(publish_path)
 
     for child in sorted(temp_dir.iterdir(), key=lambda p: p.name):
-        if child.name == sentinel_name:
+        if child.name in held:
             continue
         dest = publish_path / child.name
         shutil.move(str(child), str(dest))
+
+    # Preceding contract artefacts, in order, before the sentinel.
+    for name in preceding_artefacts:
+        src = temp_dir / name
+        if src.exists():
+            shutil.move(str(src), str(publish_path / name))
 
     # Sentinel last.
     shutil.move(str(sentinel_src), str(publish_path / sentinel_name))

@@ -77,6 +77,55 @@ def weight_for(type_name: str) -> int:
 
 
 # ---------------------------------------------------------------------------
+# get_metadata v2.1 — limited-permissions resilience.
+#
+# Source-only, like the deny list: no CLI flag, env var, or config entry. Adding
+# a type to ALWAYS_PROBE_TYPES is a maintainer change with review. See
+# docs/03-design-2.1.md.
+# ---------------------------------------------------------------------------
+
+# Types describeMetadata may hide from identities lacking view-source perms.
+# Unioned with the describeMetadata output before filtering, then enumerated;
+# a type the identity also cannot list falls into the skip-and-log path.
+ALWAYS_PROBE_TYPES: Final[tuple[str, ...]] = (
+    "ApexClass",
+    "ApexTrigger",
+    "StandardValueSet",
+)
+
+# Synthetic folder names always probed for foldered types, so personal /
+# unfiled-public items are captured even when not returned as a folder.
+SYNTHETIC_FOLDERS: Final[dict[str, tuple[str, ...]]] = {
+    "Report": ("unfiled$public",),
+    "Dashboard": ("unfiled$public",),
+}
+
+# Categories a per-type failure resolves into. `registry_miss` is reserved
+# (a CLI-only failure; never populated on sf-clean-room's SOAP retrieve path).
+SKIP_BUCKETS: Final[tuple[str, ...]] = (
+    "insufficient_access",
+    "invalid_type",
+    "registry_miss",
+    "partial_retrieve",
+    "unknown",
+)
+
+# Verbatim SOAP error detail is truncated to this before going to the audit log
+# (never to the published _skipped-types.csv).
+MAX_SKIP_DETAIL_LEN: Final[int] = 400
+
+
+def classify_skip_bucket(message: str) -> str:
+    """Map a SOAP/CLI error message to a SKIP_BUCKETS category."""
+    m = (message or "").upper()
+    if "INSUFFICIENT_ACCESS" in m:
+        return "insufficient_access"
+    if "INVALID_TYPE" in m or "CANNOT USE" in m:
+        return "invalid_type"
+    return "unknown"
+
+
+# ---------------------------------------------------------------------------
 # get_records (v2) — field-classification constants.
 #
 # These drive the recommendation engine in ``classify.py``. They are source

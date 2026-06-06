@@ -92,7 +92,8 @@ That is the entire `get_metadata` surface. There are also top-level `--help` and
 After a successful run, `--path` contains:
 
 * A standard Salesforce metadata tree (`classes/`, `objects/`, `flows/`, …).
-* `package.xml` at the root — present **only** if the publish completed.
+* `package.xml` at the root — present **only** if the publish completed. It lists what was actually retrieved.
+* `_skipped-types.csv` at the root — types the authenticated identity could not enumerate or fully retrieve (`type,bucket,components_requested,components_retrieved`). Header-only when nothing was skipped. A per-type permission gap is recorded here and the run continues rather than aborting; verbatim error detail goes to the audit log, not this file. No deny-listed type ever appears here.
 * `_path_renames.csv` (if any path components were rewritten during extraction).
 
 A consumer should:

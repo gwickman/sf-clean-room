@@ -31,6 +31,7 @@ from sf_clean_room.constants import (
     MAX_WEIGHT_PER_BATCH,
     OPERATIONAL_DENY,
     SENSITIVITY_DENY,
+    SKIP_BUCKETS,
 )
 from sf_clean_room.paths import default_config_path, default_log_dir
 from sf_clean_room.pipeline import execute, make_run_paths, plan_only
@@ -95,6 +96,7 @@ def _get_metadata_description() -> str:
 def _get_metadata_epilog() -> str:
     deny_op = ", ".join(sorted(OPERATIONAL_DENY))
     deny_sens = ", ".join(sorted(SENSITIVITY_DENY))
+    buckets = ", ".join(SKIP_BUCKETS)
     return f"""
 Output contract
 ---------------
@@ -102,6 +104,22 @@ The publish folder (--path) is the only artefact consumers should read.
 The sentinel file is package.xml: it is moved into --path LAST. A consumer
 that observes package.xml in --path may assume the publish completed; a
 consumer that does not observe it must not act on the folder.
+
+Limited permissions and the skip log
+-------------------------------------
+A per-type permission or capability gap does NOT abort the run. When the
+authenticated identity cannot enumerate or fully retrieve a metadata type, that
+type is skipped and recorded; the rest is published. The run also publishes:
+
+  _skipped-types.csv   header: type,bucket,components_requested,components_retrieved
+
+moved into --path just before package.xml. It is always written; a header-only
+file means nothing was skipped (the expected state for a full-permission
+identity). Buckets: {buckets} (registry_miss is reserved and not used on this
+SOAP retrieve path). package.xml reflects what was actually retrieved, so it
+never overstates. Verbatim error detail for each skip is in the audit log, not
+in the published CSV. This skip-and-continue behaviour is automatic — there is
+no flag to toggle it.
 
 Deny list (source-controlled, NOT runtime-overridable)
 ------------------------------------------------------
