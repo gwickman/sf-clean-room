@@ -6,6 +6,45 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-06-08 — `get_event_logs` (v3) implemented
+
+**Change.** Implemented the third command, `get_event_logs` (contract
+`04-design-v3.md`, plan `04-plan-v3.md`), exporting EventLogFile data anonymised
+in flight. New modules: `eventlog_classify.py` (column classifier + IP-prefix
+derive + URL sanitise + transform), `eventlog_download.py` (REST query + per-record
+`LogFile` fetch + incremental window/idempotent logic), `eventlog_plan.py`
+(column-global overrides with exposure-aware justification), `eventlog_pipeline.py`
+(orchestrator + `--dry-run`). `cli.py` gained the subcommand and help.
+
+**Grounded in proven code.** The download mechanism is adapted from
+`ai-framework`'s `salesforce_download_eventlog_files` (REST `/query` then per-record
+`/sobjects/EventLogFile/{id}/LogFile`; window = yesterday-back, resume from prior
+folders, 29-day cold start, idempotent). **The one change:** the raw `LogFile` body
+is held in memory and classified in flight; only the anonymised CSV is written
+(invariant A2) — the proven tool wrote raw CSVs.
+
+**Classification (from the field reference/overlay):** Salesforce IDs and the
+already-hashed `SESSION_KEY`/`LOGIN_KEY` → RAW; `USER_NAME`/`DELEGATED_USER_NAME`/
+`DEVICE_ID` → HASH; IP → network prefix (DERIVE), URL → query-stripped (DERIVE);
+Salesforce-provided geo (`COUNTRY_CODE`) and all metrics/enums/names → PASS;
+free-text/content/secrets → DROP. Across 65 EventTypes only a handful of columns
+drop. A `lineterminator="\n"` fix avoided `\r\r\n` corruption from Windows text-mode
+write of CSV-module `\r\n` output.
+
+**Model difference:** unlike v1/v2 (clear-and-republish), event logs are
+**incremental** — each run adds a dated subfolder; prior subfolders are never
+cleared; the temp-then-publish + sentinel discipline applies per run subfolder.
+
+**Testing.** 214 offline tests pass (full v1+v2+v2.1+v3; +~64 new). Live against
+`example-dev-edition`: the session/query/publish/idempotent path is verified
+(dry-run + real run + no-op re-run, exit 0). **Known gap:** that org is a dev
+edition without the Event Monitoring add-on, so `EventLogFile` returns 0 records —
+a real `LogFile` fetch + in-flight anonymisation is therefore covered offline (real
+CSV fixtures + no-raw-dump leak checks) but not yet run against a live org with
+Event Monitoring data. Recorded in `regression-testing.md` §4b.
+
+---
+
 ## 2026-06-05 — `get_metadata` v2.1: limited-permissions resilience (implemented)
 
 **Change.** Implemented v2.1 (`docs/03-design-2.1.md`): per-type fault tolerance

@@ -6,7 +6,7 @@ Invocation shape::
 
 v1 ships one command:
 
-* ``get_metadata`` — export Salesforce metadata to a folder safe for downstream
+* ``get_metadata`` - export Salesforce metadata to a folder safe for downstream
   automated consumers.
 
 Top-level flags are limited to ``--help`` and ``--version``. Per-command flags
@@ -44,7 +44,7 @@ from sf_clean_room.session import get_session
 def _top_description() -> str:
     return (
         "Export Salesforce metadata (and, in future versions, records) to a "
-        "folder that is safe for downstream automated consumers — other AI "
+        "folder that is safe for downstream automated consumers - other AI "
         "agents, code analysers, CI. Sensitive metadata categories are "
         "filtered out at enumeration time and never transit the network."
     )
@@ -57,6 +57,8 @@ Commands
   get_metadata    Export org metadata to --path with package.xml as the sentinel.
   get_records     Export org record data to --path (anonymised in flight) with
                   _field-handling-applied.csv as the sentinel.
+  get_event_logs  Export org EventLogFile data to --path (anonymised in flight),
+                  incrementally, with _field-handling-applied.csv as the sentinel.
 
 Authentication
 --------------
@@ -82,6 +84,7 @@ Per-command help
 ----------------
   sf-clean-room get_metadata --help
   sf-clean-room get_records --help
+  sf-clean-room get_event_logs --help
 """
 
 
@@ -118,7 +121,7 @@ file means nothing was skipped (the expected state for a full-permission
 identity). Buckets: {buckets} (registry_miss is reserved and not used on this
 SOAP retrieve path). package.xml reflects what was actually retrieved, so it
 never overstates. Verbatim error detail for each skip is in the audit log, not
-in the published CSV. This skip-and-continue behaviour is automatic — there is
+in the published CSV. This skip-and-continue behaviour is automatic - there is
 no flag to toggle it.
 
 Deny list (source-controlled, NOT runtime-overridable)
@@ -207,6 +210,56 @@ Examples
 """
 
 
+def _get_event_logs_description() -> str:
+    return (
+        "Export Salesforce EventLogFile data for one org to --path, anonymised in "
+        "flight. Every CSV column is classified; IPs are derived to a network "
+        "prefix, URLs stripped of query strings, usernames hashed, free-text "
+        "dropped - before any value is written. Incremental: each run adds a dated "
+        "subfolder; today's (incomplete) logs are never downloaded."
+    )
+
+
+def _get_event_logs_epilog() -> str:
+    return """
+Output contract
+---------------
+Output lands under <path>/event_logs/<alias>/<start>_to_<end>/, one
+<LogDate>_<EventType>_<Id>.csv per record. The sentinel is
+_field-handling-applied.csv (column,action,recipe,source,downgraded), moved in
+LAST. A consumer that observes it may read that subfolder; without it, must not.
+Prior subfolders are never cleared - runs accumulate history beyond Salesforce's
+~30-day retention.
+
+How columns are handled (recommendations; a plan may override)
+--------------------------------------------------------------
+  RAW     Salesforce IDs and opaque correlation keys (incl. SESSION_KEY /
+          LOGIN_KEY, which Salesforce already emits hashed) - the join keys.
+  HASH    USER_NAME / DELEGATED_USER_NAME / DEVICE_ID (sha256, frozen recipe).
+  DERIVE  IP -> network prefix (last octet/80 bits zeroed); URL -> host+path,
+          query string stripped.
+  PASS    metrics, enums, names, and Salesforce-provided geo (COUNTRY_CODE).
+  DROP    free-text / content / secrets (QUERY, SEARCH_QUERY, *_MESSAGE,
+          STACK_TRACE, HTTP_HEADERS, ...).
+
+Raw LogFile bodies stay in memory; only the anonymised CSV is written. This
+subcommand is read-only (REST GET only). The classification is automatic; no
+flag disables it.
+
+Incremental window
+------------------
+end = yesterday (UTC); start = (max prior subfolder end + 1 day) or 29 days ago
+on a cold start. If a subfolder already covers through yesterday, the run is a
+no-op.
+
+Examples
+--------
+  sf-clean-room get_event_logs --org-alias myorg --path ./out --dry-run --plan p.toml
+  sf-clean-room get_event_logs --org-alias myorg --path ./out --only Login ReportExport
+  sf-clean-room get_event_logs --org-alias myorg --path ./out
+"""
+
+
 # ---------- parser construction ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -286,6 +339,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Probe, describe, and classify only. Write the annotated plan and a summary. No record values, no publish-path mutation.",
     )
     gr.set_defaults(func=cmd_get_records)
+
+    ge = sub.add_parser(
+        "get_event_logs",
+        help="Export org EventLogFile data to --path, anonymised in flight (incremental; _field-handling-applied.csv is the sentinel).",
+        description=_get_event_logs_description(),
+        epilog=_get_event_logs_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ge.add_argument(
+        "--org-alias", required=True, metavar="ALIAS",
+        help="Salesforce CLI alias or username (must already be authenticated via `sf` or `sfdx`).",
+    )
+    ge.add_argument(
+        "--path", required=True, metavar="DIR",
+        help="Base directory (must exist). Output lands under <path>/event_logs/<alias>/<start>_to_<end>/.",
+    )
+    ge.add_argument(
+        "--only", nargs="+", metavar="EVENTTYPE", default=None,
+        help="EventTypes to include (default: all available in the window).",
+    )
+    ge.add_argument(
+        "--plan", metavar="FILE", default=None,
+        help="Classification plan (TOML): [scope].event_types and [overrides].<COLUMN>. With --dry-run it is written; without, consumed.",
+    )
+    ge.add_argument(
+        "--dry-run", action="store_true",
+        help="Query the window and report what would download + the column classification plan. No LogFile fetch, no values, no publish.",
+    )
+    ge.set_defaults(func=cmd_get_event_logs)
 
     return parser
 
@@ -377,6 +459,51 @@ def cmd_get_records(args: argparse.Namespace) -> int:
         return 0
 
 
+def cmd_get_event_logs(args: argparse.Namespace) -> int:
+    from sf_clean_room.eventlog_pipeline import (
+        EventLogRequest,
+        dry_run as el_dry_run,
+        execute as el_execute,
+    )
+
+    org_alias = args.org_alias
+    base_path = Path(args.path)
+    plan_path = Path(args.plan) if args.plan else None
+    config = load_config()
+    with audit_log(org_alias, tee_stream=sys.stderr) as log:
+        log.write(f"sf-clean-room {__version__} command=get_event_logs")
+        log.write(
+            f"args: org_alias={org_alias} path={base_path} only={args.only} "
+            f"plan={plan_path} dry_run={args.dry_run}"
+        )
+        log.write(f"temp_root={config.temp_root}")
+
+        if not base_path.is_dir():
+            raise ValueError(f"base path does not exist or is not a directory: {base_path}")
+
+        log.section("session")
+        session = get_session(org_alias, api_version=API_VERSION)
+        log.write(
+            f"session resolved: instance_url={session.instance_url} "
+            f"username={session.username} org_id={session.org_id}"
+        )
+
+        req = EventLogRequest(only=args.only, plan_path=plan_path, dry_run=args.dry_run)
+        if args.dry_run:
+            report = el_dry_run(session, base_path, org_alias, req, log)
+            print(report)
+            if plan_path:
+                plan_path.write_text(report.split("\n\n", 1)[-1], encoding="utf-8")
+                print(f"\nplan written: {plan_path}")
+            print(f"audit log: {log.path}")
+            return 0
+
+        dest = el_execute(session, base_path, org_alias, req, config.temp_root, log)
+        print(f"published: {dest}")
+        print(f"audit log: {log.path}")
+        return 0
+
+
 # ---------- entry point ----------
 
 def main(argv: list[str] | None = None) -> int:
@@ -390,7 +517,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)
         return 130
-    except Exception as e:  # noqa: BLE001 — top-level: turn any error into a non-zero exit + stderr
+    except Exception as e:  # noqa: BLE001 - top-level: turn any error into a non-zero exit + stderr
         print(f"error: {e}", file=sys.stderr)
         return 1
 

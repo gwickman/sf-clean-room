@@ -179,6 +179,38 @@ limited-permission code paths with mocks regardless.
 > `limited_test_org` key to `tests/live_org.toml`. Do not point it at a client
 > production org. Until then, report this step as "not run — no fixture".
 
+## 4b. Chatbot-driven live regression — `get_event_logs` (v3)
+
+```powershell
+$org = "example-dev-edition"
+sf-clean-room get_event_logs --org-alias $org --path .test-output --dry-run
+sf-clean-room get_event_logs --org-alias $org --path .test-output
+sf-clean-room get_event_logs --org-alias $org --path .test-output   # again -> idempotent no-op
+```
+
+Verify:
+- Dry-run prints the window and a per-EventType record count, plus the column
+  classification plan; it does **not** abort and fetches no `LogFile`.
+- The real run publishes `<path>/event_logs/<org>/<start>_to_<end>/` containing
+  `_field-handling-applied.csv` (the sentinel) and `_extract-summary.json`; exit 0.
+- The second same-day run is an **idempotent no-op** (reports the existing folder).
+- **If the org has Event Monitoring data** (CSVs present): no-raw-dump checks —
+  no raw dotted-quad IP anywhere; `CLIENT_IP` cells end `.0`; no `@`-bearing
+  username; hashed columns are 64-hex; no header column whose audit action is
+  `DROP`; URL columns carry no `?` query string.
+
+> **STATUS (extraction not yet exercised live): no Event Monitoring data.** The
+> default test org `example-dev-edition` is a dev edition **without** the Event
+> Monitoring add-on, so `EventLogFile` returns **0 records** — the query / publish
+> / idempotent path is verified live, but a real `LogFile` fetch + in-flight
+> anonymisation has not been run against a real org. That path is covered offline
+> by `tests/test_eventlog_pipeline.py` with real CSV fixtures (incl. the
+> no-raw-dump leak checks). To exercise it live, point `tests/live_org.toml` at an
+> org with Event Monitoring enabled (records present in the last ~30 days), or
+> add a `limited`/`eventmon_test_org` key. Do not point it at a client production
+> org. Until then, report this step as "query/publish path verified; extraction
+> not run — no Event Monitoring data".
+
 ## 5. Reporting back
 
 Summarise: offline suite result (pass/skip counts); whether the live org was

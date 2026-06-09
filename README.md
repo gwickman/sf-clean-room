@@ -6,10 +6,11 @@ The safety guarantee is structural, not behavioural. Metadata categories that ro
 
 `sf-clean-room` is an **AI-operated CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly.
 
-Two commands share one dispatcher:
+Three commands share one dispatcher:
 
 * `get_metadata` — export org **metadata** (structure: objects, fields, Apex, flows) safely. The sentinel is `package.xml`.
 * `get_records` — export org **record data**, anonymised in flight: every field is classified and DROP/HASH applied before any value is written, so raw PII never reaches a file the consumer reads. The sentinel is `_field-handling-applied.csv`.
+* `get_event_logs` — export org **EventLogFile** data, anonymised in flight and **incrementally** (each run adds a dated subfolder; today's incomplete logs are never pulled). The sentinel is `_field-handling-applied.csv`.
 
 ---
 
@@ -57,8 +58,9 @@ sf-clean-room get_metadata --help          # per-command: full contract
 Both commands share authentication, the audit log, the temp-then-publish discipline, and the sentinel-last publish rule:
 
 ```bash
-sf-clean-room get_metadata --help          # metadata export contract
-sf-clean-room get_records  --help          # record export contract
+sf-clean-room get_metadata   --help        # metadata export contract
+sf-clean-room get_records    --help        # record export contract
+sf-clean-room get_event_logs --help        # event-log export contract
 ```
 
 ---
@@ -147,6 +149,30 @@ last. No sentinel ⇒ do not consume. See `docs/02-design-v2.md` for the full
 contract.
 
 ---
+
+## Event logs (`get_event_logs`)
+
+`get_event_logs` downloads Salesforce **EventLogFile** CSVs and publishes them
+anonymised. The classifier keeps Salesforce IDs and the already-hashed
+`SESSION_KEY`/`LOGIN_KEY` as RAW (the join keys), hashes usernames, derives IPs to
+a network prefix, strips URL query strings, keeps metrics/enums/Salesforce geo,
+and drops the rare free-text/content column — all before any value is written
+(the raw `LogFile` stays in memory). It is **read-only** (REST `GET` only).
+
+```bash
+# Plan (dry-run): query the window, report records per EventType + the column plan. No LogFile fetch, no values.
+sf-clean-room get_event_logs --org-alias myorg --path ./out --only Login ReportExport --plan p.toml --dry-run
+
+# Real run: download, anonymise in flight, publish a dated subfolder.
+sf-clean-room get_event_logs --org-alias myorg --path ./out
+```
+
+It is **incremental**: output lands under `./out/event_logs/<alias>/<start>_to_<end>/`,
+each run adds a new dated subfolder (prior ones are never cleared — this builds
+history beyond Salesforce's ~30-day retention), `end = yesterday (UTC)`, and a run
+that already covers through yesterday is a no-op. The sentinel
+`_field-handling-applied.csv` is moved into the subfolder last. See
+`docs/04-design-v3.md`.
 
 ## Testing
 
