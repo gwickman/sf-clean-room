@@ -6,6 +6,25 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-06-09 — Principle C8 (README currency) + README front-door restructure
+
+**Change.** Added principle **C8** to `00-design-principles.md`: the root README is
+the front door — it must carry, near the top, a description of what the system can
+do and a complete listing of the CLI commands with purposes and sentinels, and any
+change to a command/flag/artefact/sentinel updates the README **in the same change**
+(stale README = discoverability bug, same class as help-text drift under C1).
+
+**README restructured to comply.** The opening was still v1-centric ("Export
+Salesforce metadata…") even though three commands ship. Now: a system-level intro
+(metadata + records + event logs, structural safety, read-only, sentinel
+discipline), a prominent **Commands** table (command / what it does / sentinel),
+and a closing line on what the three commands jointly give an agent. The
+metadata pipeline section was retitled "How `get_metadata` works" and the
+unnamed "Use" section became "Metadata (`get_metadata`)", parallel to the
+existing Records / Event logs sections.
+
+---
+
 ## 2026-06-08 — `get_event_logs` (v3) implemented
 
 **Change.** Implemented the third command, `get_event_logs` (contract

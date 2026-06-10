@@ -1,20 +1,29 @@
 # sf-clean-room
 
-Export Salesforce metadata to a local folder that is **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
+Extract Salesforce **metadata, record data, and event logs** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
-The safety guarantee is structural, not behavioural. Metadata categories that routinely carry credentials, identity material, or opaque binary blobs are filtered out at enumeration time, before any `retrieve` is submitted. They never transit the network, never land in temp, and are never present in the published folder. Consumers read a directory; they don't need to know which Salesforce metadata types are sensitive.
+The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
 
-`sf-clean-room` is an **AI-operated CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly.
+`sf-clean-room` is an **AI-operated, read-only CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly. Every command publishes to a per-run temp area first and moves a **sentinel file** into the output last: see the sentinel, the publish is complete; no sentinel, don't read.
 
-Three commands share one dispatcher:
+## Commands
 
-* `get_metadata` — export org **metadata** (structure: objects, fields, Apex, flows) safely. The sentinel is `package.xml`.
-* `get_records` — export org **record data**, anonymised in flight: every field is classified and DROP/HASH applied before any value is written, so raw PII never reaches a file the consumer reads. The sentinel is `_field-handling-applied.csv`.
-* `get_event_logs` — export org **EventLogFile** data, anonymised in flight and **incrementally** (each run adds a dated subfolder; today's incomplete logs are never pulled). The sentinel is `_field-handling-applied.csv`.
+| Command | What it does | Sentinel |
+|---|---|---|
+| `get_metadata` | Export org **metadata** (objects, fields, Apex, flows, …). A source-controlled deny list excludes credential-bearing and fragile types at enumeration, before any retrieve. Per-type permission gaps are skipped and recorded (`_skipped-types.csv`), not fatal. | `package.xml` |
+| `get_records` | Export org **record data**, anonymised in flight. Every field is classified (RAW / DROP / HASH / PASS / DERIVE); raw PII never reaches disk. A reviewed plan persists the classification for headless, scheduled re-runs. | `_field-handling-applied.csv` |
+| `get_event_logs` | Export org **EventLogFile** activity data, anonymised in flight and **incrementally** — each run adds a dated subfolder, building history beyond Salesforce's ~30-day retention. IPs → network prefix, URLs → query-stripped, usernames hashed, free text dropped; Salesforce IDs kept as join keys. | `_field-handling-applied.csv` |
+
+```bash
+sf-clean-room --help                       # tool overview + command list
+sf-clean-room <command> --help             # full per-command contract
+```
+
+Together these give an AI agent a safe, local, joinable picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), and its *operational/security activity* (`get_event_logs`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All three commands are read-only, fail closed, audit every run, and support `--dry-run`.
 
 ---
 
-## What it does
+## How `get_metadata` works
 
 ```
 enumerate → filter → batch → retrieve+extract (to temp) → scrub (no-op in v1) → publish
@@ -77,7 +86,7 @@ sf org login web --alias myorg
 
 ---
 
-## Use
+## Metadata (`get_metadata`)
 
 ```bash
 # Plan only — enumerate, filter, batch, report. Does not call retrieve, does not write anywhere.
