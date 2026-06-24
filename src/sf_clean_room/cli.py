@@ -62,6 +62,12 @@ Commands
   get_technical_objects Export 40 catalogued technical objects (Tooling entities, system
                         tables, REST metrics) to --path (anonymised in flight) with
                         _field-handling-applied.csv as the sentinel.
+  get_security_health_check
+                        Export the org's Security Health Check score and per-setting
+                        risk table to --path as a single JSON file (sentinel).
+  get_code_analysis     Run Salesforce Code Analyzer over a get_metadata output folder
+                        and publish HTML + CSV + JSON reports to --path
+                        (_summary.json is the sentinel).
 
 Authentication
 --------------
@@ -89,6 +95,8 @@ Per-command help
   sf-clean-room get_records --help
   sf-clean-room get_event_logs --help
   sf-clean-room get_technical_objects --help
+  sf-clean-room get_security_health_check --help
+  sf-clean-room get_code_analysis --help
 """
 
 
@@ -339,6 +347,127 @@ Examples
 """
 
 
+def _get_security_health_check_description() -> str:
+    return (
+        "Export the Salesforce org's Security Health Check to --path as a single "
+        "JSON file. The file contains the overall score (0–100) and one row per "
+        "evaluated setting (RiskType, Setting, SettingGroup, OrgValue, "
+        "StandardValue). No user data — all content is org-configuration metadata. "
+        "Re-running overwrites the prior snapshot."
+    )
+
+
+def _get_security_health_check_epilog() -> str:
+    return f"""
+Output contract
+---------------
+The publish folder (--path) holds a single file:
+  securityhealthcheck_<org_alias>.json   — score + per-setting risk table.
+
+This file is also the sentinel: it is moved into --path LAST. A consumer
+that observes it may trust the publish completed; without it, the folder
+must not be read.
+
+JSON structure
+--------------
+  {{
+    "SecurityHealthCheck": {{"Id": "...", "Score": <0-100>}},
+    "Risks": [
+      {{
+        "RiskType": "HIGH_RISK|MEDIUM_RISK|LOW_RISK|INFORMATIONAL|MEETS_STANDARD",
+        "Setting": "<human-readable label>",
+        "SettingGroup": "SessionSettings|PasswordPolicies|...",
+        "OrgValue": "<current org value>",
+        "StandardValue": "<baseline value>"
+      }},
+      ...
+    ],
+    "risk_count": <int>
+  }}
+
+Data classification
+-------------------
+Score and per-setting values are org configuration data — no user identifiers,
+no IP addresses, no customer record data. OrgValue is the only org-specific
+field; it carries values like "Enabled", "Disabled", or numeric counts. The
+full classification rationale is in docs/ideation/salesforce-security-health-check.md.
+
+Source API
+----------
+Two Tooling API SOQL queries:
+  SELECT Id, Score FROM SecurityHealthCheck         (one row)
+  SELECT RiskType, Setting, SettingGroup, OrgValue,
+         StandardValue FROM SecurityHealthCheckRisks (one row per setting)
+
+API version: {API_VERSION}
+
+Examples
+--------
+  sf-clean-room get_security_health_check --org-alias myorg --path ./out --dry-run
+  sf-clean-room get_security_health_check --org-alias myorg --path ./out
+"""
+
+
+def _get_code_analysis_description() -> str:
+    return (
+        "Run Salesforce Code Analyzer (sf code-analyzer) over a get_metadata output "
+        "folder and publish the results. The analyser is run locally — no Salesforce "
+        "session is used. Requires the sf code-analyzer plugin and a completed "
+        "get_metadata run (package.xml sentinel must be present in --metadata-path). "
+        "Output: HTML (interactive UI), CSV (one row per violation), JSON (full "
+        "report + engine versions). Sentinel: _summary.json."
+    )
+
+
+def _get_code_analysis_epilog() -> str:
+    return """
+Pre-conditions
+--------------
+1. sf code-analyzer plugin installed:
+     sf plugins install @salesforce/plugin-code-analyzer
+2. --metadata-path must be a completed get_metadata output folder (package.xml
+   present). Run get_metadata first if it is not.
+
+Output contract
+---------------
+The publish folder (--path) holds:
+  code_analyser_results_<org_alias>.html   interactive report
+  code_analyser_results_<org_alias>.csv    one row per violation
+  code_analyser_results_<org_alias>.json   full report + engine version metadata
+  _summary.json                            violation counts + run metadata (SENTINEL)
+
+_summary.json is moved into --path LAST. A consumer that observes it may read
+the folder; without it, the folder must not be read.
+
+Engines run by default
+----------------------
+  pmd       Apex / Java-family static analysis (usually dominates violation count)
+  eslint    JavaScript / TypeScript linting (LWC, Aura)
+  retire-js Known-vulnerability scan of JS deps in static resources
+  flow      Salesforce Flow analyser
+  cpd       Copy-Paste Detector
+  regex     Salesforce-shipped pattern checks (old API versions, etc.)
+
+Volume note: mature Salesforce codebases commonly produce tens of thousands of
+violations (the sampled run in the ideation doc: 44,189). The full analysis run
+can take several minutes. Runtime scales with codebase size.
+
+Data classification
+-------------------
+Violation messages contain code-derived identifiers (variable names, method names,
+API versions, CVE IDs, library names) — not customer record data. The message field
+does NOT embed source-code bodies. The full classification rationale is in
+docs/ideation/salesforce-code-analyser.md.
+
+Examples
+--------
+  sf-clean-room get_code_analysis --org-alias myorg \\
+      --metadata-path ./meta --path ./out --dry-run
+  sf-clean-room get_code_analysis --org-alias myorg \\
+      --metadata-path ./meta --path ./out
+"""
+
+
 # ---------- parser construction ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -480,6 +609,52 @@ def build_parser() -> argparse.ArgumentParser:
         help="Describe + classify only: report the per-object column plan. No record values, no publish-path mutation.",
     )
     gt.set_defaults(func=cmd_get_technical_objects)
+
+    gshc = sub.add_parser(
+        "get_security_health_check",
+        help="Export org Security Health Check score + risk table to --path (JSON sentinel).",
+        description=_get_security_health_check_description(),
+        epilog=_get_security_health_check_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gshc.add_argument(
+        "--org-alias", required=True, metavar="ALIAS",
+        help="Salesforce CLI alias or username (must already be authenticated via `sf` or `sfdx`).",
+    )
+    gshc.add_argument(
+        "--path", required=True, metavar="DIR",
+        help="Publish directory. Created if missing. Existing contents replaced only at publish step.",
+    )
+    gshc.add_argument(
+        "--dry-run", action="store_true",
+        help="Query the score only (fast connectivity check). Report what would be written. No publish-path mutation.",
+    )
+    gshc.set_defaults(func=cmd_get_security_health_check)
+
+    gca = sub.add_parser(
+        "get_code_analysis",
+        help="Run sf code-analyzer over a get_metadata folder; publish HTML+CSV+JSON reports (_summary.json sentinel).",
+        description=_get_code_analysis_description(),
+        epilog=_get_code_analysis_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gca.add_argument(
+        "--org-alias", required=True, metavar="ALIAS",
+        help="Org alias used for output file naming and the audit log. No session is opened.",
+    )
+    gca.add_argument(
+        "--metadata-path", required=True, metavar="DIR",
+        help="Path to a completed get_metadata output folder (package.xml must be present).",
+    )
+    gca.add_argument(
+        "--path", required=True, metavar="DIR",
+        help="Publish directory. Created if missing. Existing contents replaced only at publish step.",
+    )
+    gca.add_argument(
+        "--dry-run", action="store_true",
+        help="Validate pre-conditions (plugin installed, package.xml present) without running the analysis.",
+    )
+    gca.set_defaults(func=cmd_get_code_analysis)
 
     return parser
 
@@ -655,6 +830,73 @@ def cmd_get_technical_objects(args: argparse.Namespace) -> int:
 
         publish_path.mkdir(parents=True, exist_ok=True)
         to_execute(session, publish_path, req, config.temp_root, log)
+        print(f"published: {publish_path}")
+        print(f"audit log: {log.path}")
+        return 0
+
+
+def cmd_get_security_health_check(args: argparse.Namespace) -> int:
+    from sf_clean_room.security_pipeline import (
+        dry_run as shc_dry_run,
+        execute as shc_execute,
+    )
+
+    org_alias = args.org_alias
+    publish_path = Path(args.path)
+    config = load_config()
+    with audit_log(org_alias, tee_stream=sys.stderr) as log:
+        log.write(f"sf-clean-room {__version__} command=get_security_health_check")
+        log.write(
+            f"args: org_alias={org_alias} path={publish_path} dry_run={args.dry_run}"
+        )
+        log.write(f"temp_root={config.temp_root}")
+
+        log.section("session")
+        session = get_session(org_alias, api_version=API_VERSION)
+        log.write(
+            f"session resolved: instance_url={session.instance_url} "
+            f"username={session.username} org_id={session.org_id}"
+        )
+
+        if args.dry_run:
+            report = shc_dry_run(session, log)
+            print(report)
+            print(f"\naudit log: {log.path}")
+            return 0
+
+        publish_path.mkdir(parents=True, exist_ok=True)
+        shc_execute(session, publish_path, org_alias, config.temp_root, log)
+        print(f"published: {publish_path}")
+        print(f"audit log: {log.path}")
+        return 0
+
+
+def cmd_get_code_analysis(args: argparse.Namespace) -> int:
+    from sf_clean_room.code_analysis_pipeline import (
+        dry_run as ca_dry_run,
+        execute as ca_execute,
+    )
+
+    org_alias = args.org_alias
+    metadata_path = Path(args.metadata_path)
+    publish_path = Path(args.path)
+    config = load_config()
+    with audit_log(org_alias, tee_stream=sys.stderr) as log:
+        log.write(f"sf-clean-room {__version__} command=get_code_analysis")
+        log.write(
+            f"args: org_alias={org_alias} metadata_path={metadata_path} "
+            f"path={publish_path} dry_run={args.dry_run}"
+        )
+        log.write(f"temp_root={config.temp_root}")
+
+        if args.dry_run:
+            report = ca_dry_run(org_alias, metadata_path, log)
+            print(report)
+            print(f"\naudit log: {log.path}")
+            return 0
+
+        publish_path.mkdir(parents=True, exist_ok=True)
+        ca_execute(org_alias, metadata_path, publish_path, config.temp_root, log)
         print(f"published: {publish_path}")
         print(f"audit log: {log.path}")
         return 0
