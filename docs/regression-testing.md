@@ -55,7 +55,7 @@ incl. sentinel and no-DROP-leak (`test_records_pipeline.py`), and the CLI surfac
 Configured in [`../tests/live_org.toml`](../tests/live_org.toml):
 
 ```toml
-test_org = "example-dev-edition"
+test_org = "example-prodcopy"
 output_dir = ".test-output"
 ```
 
@@ -63,7 +63,7 @@ output_dir = ".test-output"
 assumes):
 
 ```powershell
-sf org display --target-org example-dev-edition --json
+sf org display --target-org example-prodcopy --json
 ```
 
 - If this returns a connected session → live testing is enabled.
@@ -199,17 +199,81 @@ Verify:
   username; hashed columns are 64-hex; no header column whose audit action is
   `DROP`; URL columns carry no `?` query string.
 
-> **STATUS (extraction not yet exercised live): no Event Monitoring data.** The
-> default test org `example-dev-edition` is a dev edition **without** the Event
-> Monitoring add-on, so `EventLogFile` returns **0 records** — the query / publish
-> / idempotent path is verified live, but a real `LogFile` fetch + in-flight
-> anonymisation has not been run against a real org. That path is covered offline
-> by `tests/test_eventlog_pipeline.py` with real CSV fixtures (incl. the
-> no-raw-dump leak checks). To exercise it live, point `tests/live_org.toml` at an
-> org with Event Monitoring enabled (records present in the last ~30 days), or
-> add a `limited`/`eventmon_test_org` key. Do not point it at a client production
-> org. Until then, report this step as "query/publish path verified; extraction
-> not run — no Event Monitoring data".
+> **STATUS (2026-06-24, example-prodcopy):** Event Monitoring enabled; 1025
+> EventLogFile records across a 30-day window. Dry-run ✓; extraction ✓; sentinel
+> (`_field-handling-applied.csv`) present ✓; idempotency re-run ✓ (exit 0). No-raw-dump
+> checks: `CLIENT_IP` cells end in `.0` ✓; `SESSION_KEY`/`LOGIN_KEY` RAW ✓;
+> `USER_NAME` 64-hex HASH ✓; URL columns carry no `?` query strings ✓.
+>
+> **Bug found and fixed during this run:** `sanitise_url()` was not masking IPv4
+> addresses embedded in URL *paths*. Apex code on this org calls
+> `util.appinium.com/ipinfo/<user-ip>` for IP lookups, placing raw user IPs in
+> `ApexCallout` log URLs (293 occurrences across 18 files). Fixed by adding an
+> `_IP_IN_URL` regex sub to `sanitise_url()` — last octet zeroed in place for any
+> dotted-quad anywhere in the URL (host or path). Unit tests in
+> `tests/test_eventlog_classify.py` extended with three path-IP cases.
+> Re-run after fix verified IPs are zeroed.
+
+## 4c. Chatbot-driven live regression — `get_technical_objects` (v4)
+
+```powershell
+$org = "example-dev-edition"
+
+# Dry-run: describe + classify all 40 objects (some will fail with permission gaps on dev edition).
+sf-clean-room get_technical_objects --org-alias $org --path .test-output\techobj --dry-run --plan .test-output\techobj-plan.toml
+
+# Real run (limit 50 rows per object for speed).
+sf-clean-room get_technical_objects --org-alias $org --path .test-output\techobj --limit 50
+
+# Re-run (snapshot replaces cleanly).
+sf-clean-room get_technical_objects --org-alias $org --path .test-output\techobj --limit 50
+```
+
+Verify:
+
+- Dry-run: exit 0; `techobj-plan.toml` written; plan contains `[scope]`, `[overrides]`, and at least the objects the dev org permits.
+- Real run: exit 0; `_field-handling-applied.csv` (sentinel) present at root of `--path`; `_extract-summary.json` present.
+- Sentinel is the **last** file by mtime.
+- **No-raw-dump checks** (run on every CSV in `--path` except the sentinel and summary):
+  - No **raw** dotted-quad IP (last octet non-zero, regex `\d+\.\d+\.\d+\.[1-9]\d*`) anywhere in data rows. Derived network prefixes ending in `.0` (e.g. `192.168.1.0`) are the expected DERIVE/ip_prefix output and must appear.
+  - No `@`-bearing string unless it is 64 hex characters (a hash).
+  - Header must contain no `InterviewLabel`, `PauseLabel`, `Display` (curated DROP fields).
+  - `LoginGeo.csv` (if present): header must not contain `Latitude`, `Longitude`, `City`, `PostalCode`.
+  - `LoginGeo.csv` (if present): header must contain `Country` or `Subdivision`.
+- Re-run: sentinel still present; `_extract-summary.json` reflects the new run.
+- `_field-handling-applied.csv` has columns `object,column,type,action,recipe,source,downgraded`.
+- `_extract-summary.json` has keys `objects`, `skipped`, `limit`.
+
+### Expected permission-gap skips on dev edition (record in summary, not failures)
+
+Some objects require paid add-ons or specific platform settings not present on a Developer Edition org.  A skip means the object appears in `skipped` in `_extract-summary.json` and no CSV is published for it — this is the expected behaviour, not a failure.  Objects **likely to skip** on dev edition:
+
+| Object | Reason |
+|---|---|
+| `SetupAuditTrail` | May be empty or restricted on some dev orgs |
+| `AuthSession` | May be empty or permission-gated |
+| `IdpEventLog` | Requires SSO/IDP configuration |
+| `VerificationHistory` | Requires MFA event history |
+| `ApexExecutionOverlayResult` | Requires Apex debugger sessions |
+| `ApexLog` | Only present if debug logs exist |
+| `LightningUsage*` | Lightning usage telemetry may be absent |
+
+Record any additional unexplained skips in this file (principle C7: surface, don't hide).
+
+> **STATUS (2026-06-24, example-prodcopy):** 36/40 objects extracted; exit 0 ✓.
+> 4 LightningUsage* objects skipped (404 NOT_FOUND — Lightning Usage telemetry
+> add-on not enabled); recorded in `_extract-summary.json` `skipped` list.
+> No-raw-dump: 60 IP-like values in `AuthSession.csv` all derived (last octet
+> `= 0`) ✓; no raw `@`-bearing strings ✓; `LoginGeo` has no `Latitude`,
+> `Longitude`, `City`, `PostalCode` ✓; sentinel last by mtime ✓; re-run
+> (snapshot replace) ✓.
+>
+> **Classifier limitation noted:** `Username__c` on `Contact` is classified PASS
+> (field name is a generic string type — does not trigger email hashing). However,
+> this field contains 30,947 email-format Salesforce Community usernames
+> (`adam.durant@yo.co.va`). This is not a code bug — the plan review step is the
+> designed safeguard. **Recommended action before any scheduled headless run:**
+> add `Username__c = "HASH_ID"` to `[overrides.Contact]` in the plan file.
 
 ## 5. Reporting back
 

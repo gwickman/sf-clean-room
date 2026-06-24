@@ -8,7 +8,7 @@
 # Default: a dedicated dev-edition org that is safe to read from. Change
 # `test_org` to point the live tests at a different authenticated alias.
 
-test_org = "example-dev-edition"
+test_org = "example-prodcopy"
 
 # Where live runs write their output. Relative to the repo root. Gitignored.
 output_dir = ".test-output"

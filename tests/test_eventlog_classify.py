@@ -58,6 +58,10 @@ def test_sanitise_url():
     assert sanitise_url("https://h.my.salesforce.com/x/y?a=1&b=2") == "https://h.my.salesforce.com/x/y"
     assert sanitise_url("/x#frag") == "/x"
     assert sanitise_url("") == ""
+    # IPv4 addresses in URL paths must be masked (last octet zeroed).
+    assert sanitise_url("https://util.appinium.com/ipinfo/93.159.47.56") == "https://util.appinium.com/ipinfo/93.159.47.0"
+    assert sanitise_url("http://10.0.0.1/api/v1?token=abc") == "http://10.0.0.0/api/v1"
+    assert sanitise_url("https://example.com/path/192.168.1.42/info") == "https://example.com/path/192.168.1.0/info"
 
 
 def test_transform_value():

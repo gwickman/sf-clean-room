@@ -14,7 +14,11 @@ Key facts that shape the rules (from the schema reference):
 """
 from __future__ import annotations
 
+import re
+
 from sf_clean_room.hashing import hash_id
+
+_IP_IN_URL = re.compile(r"(\b\d{1,3}\.\d{1,3}\.\d{1,3}\.)\d+\b")
 
 # Actions.
 RAW = "RAW"
@@ -101,13 +105,14 @@ def derive_ip_prefix(value: str | None) -> str:
 
 
 def sanitise_url(value: str | None) -> str:
-    """Keep scheme+host+path; drop query string, matrix params, and fragment."""
+    """Keep scheme+host+path; drop query string, matrix params, and fragment.
+    IPv4 addresses anywhere in the URL (host or path) are masked to /24."""
     if not value:
         return ""
     v = value.strip()
     for sep in ("?", ";", "#"):
         v = v.split(sep, 1)[0]
-    return v
+    return _IP_IN_URL.sub(r"\g<1>0", v)
 
 
 def transform_value(action: str, recipe: str, value) -> str:

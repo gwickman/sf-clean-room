@@ -54,11 +54,14 @@ def _top_epilog() -> str:
     return f"""
 Commands
 --------
-  get_metadata    Export org metadata to --path with package.xml as the sentinel.
-  get_records     Export org record data to --path (anonymised in flight) with
-                  _field-handling-applied.csv as the sentinel.
-  get_event_logs  Export org EventLogFile data to --path (anonymised in flight),
-                  incrementally, with _field-handling-applied.csv as the sentinel.
+  get_metadata          Export org metadata to --path with package.xml as the sentinel.
+  get_records           Export org record data to --path (anonymised in flight) with
+                        _field-handling-applied.csv as the sentinel.
+  get_event_logs        Export org EventLogFile data to --path (anonymised in flight),
+                        incrementally, with _field-handling-applied.csv as the sentinel.
+  get_technical_objects Export 40 catalogued technical objects (Tooling entities, system
+                        tables, REST metrics) to --path (anonymised in flight) with
+                        _field-handling-applied.csv as the sentinel.
 
 Authentication
 --------------
@@ -85,6 +88,7 @@ Per-command help
   sf-clean-room get_metadata --help
   sf-clean-room get_records --help
   sf-clean-room get_event_logs --help
+  sf-clean-room get_technical_objects --help
 """
 
 
@@ -260,6 +264,81 @@ Examples
 """
 
 
+def _get_technical_objects_description() -> str:
+    return (
+        "Export 40 catalogued Salesforce technical objects (Tooling entities, system tables, "
+        "REST metrics endpoints) to --path, anonymised in flight. Every field is classified "
+        "(RAW/DROP/HASH/DERIVE/PASS); IPs are derived to network prefixes, geo coarsened to "
+        "country/subdivision, emails/usernames hashed, free-text dropped — before any value is "
+        "written. The agent reads the published CSVs, never Salesforce."
+    )
+
+
+def _get_technical_objects_epilog() -> str:
+    from sf_clean_room.technical_catalog import CATALOGUE_NAMES
+    objects_list = "  " + "\n  ".join(CATALOGUE_NAMES)
+    return f"""
+Catalogued objects (40)
+-----------------------
+{objects_list}
+
+Output contract
+---------------
+The publish folder (--path) holds one <ApiName>.csv per successfully-extracted
+object, plus:
+  _field-handling-applied.csv  object,column,type,action,recipe,source,downgraded
+                               This is the sentinel — moved into --path LAST.
+  _extract-summary.json        per-object rows/columns/action counts + skip reasons.
+
+A consumer that observes _field-handling-applied.csv may trust the folder; without
+it, must not read.  Skipped objects are listed in the summary; they are permission/
+edition gaps, not failures (one-object gap does not abort the run).
+
+How fields are handled (recommendations; a plan may override)
+-------------------------------------------------------------
+  Layer 0  field types base64/textarea/address/location/complexvalue/anyType and
+           field names Body/Metadata/SymbolTable/FullName/HtmlValue/Content are
+           NEVER included in any SELECT — source code, log bodies, and blobs never
+           transit.
+  RAW      Salesforce IDs and reference fields (join keys; already pseudonymous).
+  HASH     Email-type fields and email-named string fields; username-like strings
+           (sha256 frozen recipe, joinable across sources).
+  DERIVE   IP fields -> network prefix (last octet/80 bits zeroed); URL/URI fields
+           -> host+path (query string stripped).
+  PASS     Picklists, booleans (incl. all PermissionsXxx bits), counts, timestamps,
+           config names, org-level geo (country/subdivision).
+  DROP     Fine-grained geo (lat/lon/city/postcode), phone fields, free-text that
+           can echo personal data (Message, StackTrace, Display, Error, Description,
+           Remarks), curated echo fields (FlowInterview.InterviewLabel, etc.).
+
+Curated overrides (source-controlled): SetupAuditTrail.DelegateUser/IdentityUsed
+HASH; LoginHistory.Status and CronTrigger.CronExpression PASS (documented vocab);
+FlowInterview.InterviewLabel/PauseLabel, SetupAuditTrail.Display, Organization.
+PrimaryContact, ApexTestResult.Message/StackTrace, ApexLog.Status,
+BackgroundOperation.Error, and others DROP.
+
+Workflow
+--------
+1. Plan:   sf-clean-room get_technical_objects --org-alias A --path out --dry-run \\
+               --plan plan.toml
+           (describe + classify; writes an editable plan; no record values)
+2. Review: edit [overrides."Object.Field"] / [reasons."Object.Field"] in plan.toml
+3. Extract: sf-clean-room get_technical_objects --org-alias A --path out \\
+               --plan plan.toml
+4. Headless: re-run step 3 unattended. New fields not in the plan fall back to the
+   conservative classifier default — they are never leaked.
+
+This subcommand is read-only (SOQL/Tooling/REST GET only). No flag disables the
+Layer-0 skip list or the classifier.
+
+Examples
+--------
+  sf-clean-room get_technical_objects --org-alias myorg --path ./out --dry-run --plan p.toml
+  sf-clean-room get_technical_objects --org-alias myorg --path ./out --only LoginHistory AuthSession
+  sf-clean-room get_technical_objects --org-alias myorg --path ./out --limit 100
+"""
+
+
 # ---------- parser construction ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -368,6 +447,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="Query the window and report what would download + the column classification plan. No LogFile fetch, no values, no publish.",
     )
     ge.set_defaults(func=cmd_get_event_logs)
+
+    gt = sub.add_parser(
+        "get_technical_objects",
+        help="Export 40 catalogued technical objects to --path, anonymised in flight (_field-handling-applied.csv is the sentinel).",
+        description=_get_technical_objects_description(),
+        epilog=_get_technical_objects_epilog(),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    gt.add_argument(
+        "--org-alias", required=True, metavar="ALIAS",
+        help="Salesforce CLI alias or username (must already be authenticated via `sf` or `sfdx`).",
+    )
+    gt.add_argument(
+        "--path", required=True, metavar="DIR",
+        help="Publish directory. Created if missing. Existing contents are deleted only at the publish step.",
+    )
+    gt.add_argument(
+        "--only", nargs="+", metavar="OBJECT", default=None,
+        help="Objects to include (default: all 40 catalogue objects). Unknown names abort with the valid list.",
+    )
+    gt.add_argument(
+        "--limit", type=int, default=None, metavar="N",
+        help="Max rows per object — smoke-test narrowing. Applied via SOQL LIMIT N.",
+    )
+    gt.add_argument(
+        "--plan", metavar="FILE", default=None,
+        help="Classification plan (TOML): [scope].objects and [overrides.\"Object.Field\"]. With --dry-run it is written; without, consumed.",
+    )
+    gt.add_argument(
+        "--dry-run", action="store_true",
+        help="Describe + classify only: report the per-object column plan. No record values, no publish-path mutation.",
+    )
+    gt.set_defaults(func=cmd_get_technical_objects)
 
     return parser
 
@@ -500,6 +612,50 @@ def cmd_get_event_logs(args: argparse.Namespace) -> int:
 
         dest = el_execute(session, base_path, org_alias, req, config.temp_root, log)
         print(f"published: {dest}")
+        print(f"audit log: {log.path}")
+        return 0
+
+
+def cmd_get_technical_objects(args: argparse.Namespace) -> int:
+    from sf_clean_room.technical_pipeline import (
+        TechnicalRequest,
+        dry_run as to_dry_run,
+        execute as to_execute,
+    )
+
+    org_alias = args.org_alias
+    publish_path = Path(args.path)
+    plan_path = Path(args.plan) if args.plan else None
+    config = load_config()
+    with audit_log(org_alias, tee_stream=sys.stderr) as log:
+        log.write(f"sf-clean-room {__version__} command=get_technical_objects")
+        log.write(
+            f"args: org_alias={org_alias} path={publish_path} only={args.only} "
+            f"limit={args.limit} plan={plan_path} dry_run={args.dry_run}"
+        )
+        log.write(f"temp_root={config.temp_root}")
+
+        log.section("session")
+        session = get_session(org_alias, api_version=API_VERSION)
+        log.write(
+            f"session resolved: instance_url={session.instance_url} "
+            f"username={session.username} org_id={session.org_id}"
+        )
+
+        req = TechnicalRequest(
+            only=args.only, limit=args.limit, plan_path=plan_path, dry_run=args.dry_run
+        )
+        if args.dry_run:
+            report = to_dry_run(session, publish_path, req, log)
+            print(report)
+            if plan_path:
+                print(f"\nplan written: {plan_path}")
+            print(f"audit log: {log.path}")
+            return 0
+
+        publish_path.mkdir(parents=True, exist_ok=True)
+        to_execute(session, publish_path, req, config.temp_root, log)
+        print(f"published: {publish_path}")
         print(f"audit log: {log.path}")
         return 0
 

@@ -6,6 +6,29 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-06-10 — `get_technical_objects` (v4) implemented
+
+**Change.** Fourth command implemented. Contract in `05-design-v4.md`; requirements in `ideation/05-technical-objects.md`; plan in `05-plan-v4.md`.
+
+**New modules:**
+- `technical_catalog.py` — source-controlled 40-object catalogue with API routing (`soql`, `tooling`, `entitydef`, `rest_limits`, `rest_recordcount`) and Layer-0 skip constants (`LAYER0_SKIP_TYPES`, `LAYER0_SKIP_NAMES`). The catalogue is a pure constant; no runtime mechanism adds objects or disables the skip list.
+- `technical_classify.py` — two-layer classifier. Layer-0 (structural skip — applied at describe time) + Layer-1 (first-match-wins: curated per-object overrides → id/reference RAW → IP DERIVE → email HASH → phone DROP → URL DERIVE → fine geo DROP / coarse geo PASS → free-text echo DROP → PASS). 15 curated overrides (source-controlled). Reuses `hashing.py` and `eventlog_classify.derive_ip_prefix` / `sanitise_url`.
+- `technical_download.py` — HTTP transports with injectable `get_fn` for offline testing: `describe_fields` (SObject or Tooling), `page_soql` (REST query + queryMore), `query_tooling` (Tooling query + nextRecordsUrl), `page_entitydefinition` (keyset pagination on `QualifiedApiName`), `fetch_limits` / `fetch_recordcount` (fixed-schema REST endpoints).
+- `technical_plan.py` — classification plan TOML: `[scope].objects`, `[overrides."Object.Field"]`, `[reasons."Object.Field"]`. Exposure-ranking justification enforcement (same pattern as v2/v3). `emit_plan` produces annotated, editable TOML.
+- `technical_pipeline.py` — orchestrator: `dry_run` (describe + classify, emit plan, no values) and `execute` (per-object describe → classify → SELECT non-DROP → page → transform in flight → write to temp → sentinel + summary → publish). Per-object fault tolerance: describe/query failure → skip-and-log, continue. All-failing → abort, publish path untouched.
+
+**CLI:** `get_technical_objects` subcommand added to `cli.py`; `--help` lists all 40 objects, documents curated overrides, Layer-0 skip list, and workflow; runs without auth.
+
+**Design questions resolved (from open questions in 05-technical-objects.md):**
+- `Description` columns → DROP by default (overridable with justification). The generic free-text echo rule covers this; no curated exception added.
+- `EventLogFile` header rows → kept in the catalogue (cheap inventory; actual log data is `get_event_logs`).
+
+**Tests:** 95 new offline tests across four new test files (`test_technical_catalog.py`, `test_technical_classify.py`, `test_technical_download.py`, `test_technical_pipeline.py`). Covers: catalogue completeness/routing/no-duplicates, all 15 curated overrides, all Layer-1 generic rules, queryMore loop, Tooling nextRecordsUrl, EntityDefinition keyset pagination, limits/recordCount parsing, Layer-0 skip at describe time, end-to-end pipeline with crafted describes/rows for `LoginHistory`/`LoginGeo`/`SetupAuditTrail`/`FlowInterview`, no-raw-dump blob check (no dotted-quad IPs), sentinel present + last, one-failing-object skip, all-failing abort with untouched publish path, 0-row header-only CSV, REST endpoints pass-through. Live tests in `test_live_technical.py` (auto-skip without org).
+
+**Full offline suite:** 309 passed, 3 skipped (v1 + v2 + v2.1 + v3 + v4).
+
+---
+
 ## 2026-06-09 — Principle C8 (README currency) + README front-door restructure
 
 **Change.** Added principle **C8** to `00-design-principles.md`: the root README is

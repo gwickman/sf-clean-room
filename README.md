@@ -1,6 +1,6 @@
 # sf-clean-room
 
-Extract Salesforce **metadata, record data, and event logs** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
+Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
 
@@ -13,13 +13,14 @@ The safety guarantee is structural, not behavioural: anything sensitive is exclu
 | `get_metadata` | Export org **metadata** (objects, fields, Apex, flows, …). A source-controlled deny list excludes credential-bearing and fragile types at enumeration, before any retrieve. Per-type permission gaps are skipped and recorded (`_skipped-types.csv`), not fatal. | `package.xml` |
 | `get_records` | Export org **record data**, anonymised in flight. Every field is classified (RAW / DROP / HASH / PASS / DERIVE); raw PII never reaches disk. A reviewed plan persists the classification for headless, scheduled re-runs. | `_field-handling-applied.csv` |
 | `get_event_logs` | Export org **EventLogFile** activity data, anonymised in flight and **incrementally** — each run adds a dated subfolder, building history beyond Salesforce's ~30-day retention. IPs → network prefix, URLs → query-stripped, usernames hashed, free text dropped; Salesforce IDs kept as join keys. | `_field-handling-applied.csv` |
+| `get_technical_objects` | Export **40 catalogued technical objects** (Tooling entities, system tables, REST metrics endpoints), anonymised in flight. Covers Apex code health, job machinery, privilege topology, login/session/MFA activity, setup audit history, usage telemetry, and org limits. IPs → network prefix, geo coarsened to country/subdivision, emails/usernames hashed, free text dropped; permission bits and IDs kept whole. Snapshot publish model (clear-and-republish). | `_field-handling-applied.csv` |
 
 ```bash
 sf-clean-room --help                       # tool overview + command list
 sf-clean-room <command> --help             # full per-command contract
 ```
 
-Together these give an AI agent a safe, local, joinable picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), and its *operational/security activity* (`get_event_logs`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All three commands are read-only, fail closed, audit every run, and support `--dry-run`.
+Together these give an AI agent a safe, local, joinable picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), and its *technical internals* (`get_technical_objects`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All four commands are read-only, fail closed, audit every run, and support `--dry-run`.
 
 ---
 
@@ -64,12 +65,13 @@ sf-clean-room --help                       # top-level: lists available commands
 sf-clean-room get_metadata --help          # per-command: full contract
 ```
 
-Both commands share authentication, the audit log, the temp-then-publish discipline, and the sentinel-last publish rule:
+All commands share authentication, the audit log, the temp-then-publish discipline, and the sentinel-last publish rule:
 
 ```bash
-sf-clean-room get_metadata   --help        # metadata export contract
-sf-clean-room get_records    --help        # record export contract
-sf-clean-room get_event_logs --help        # event-log export contract
+sf-clean-room get_metadata           --help   # metadata export contract
+sf-clean-room get_records            --help   # record export contract
+sf-clean-room get_event_logs         --help   # event-log export contract
+sf-clean-room get_technical_objects  --help   # technical objects export contract
 ```
 
 ---
