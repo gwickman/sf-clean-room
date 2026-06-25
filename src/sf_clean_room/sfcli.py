@@ -55,7 +55,15 @@ def run_cli_text(cmd: list[str], timeout: int | None = None) -> str:
 
     Raises ``SfCliError`` on a non-zero exit, surfacing stderr so the operator
     can see why.
+
+    On Windows, bare ``"sf"`` / ``"sfdx"`` in argv[0] cannot be resolved by
+    ``CreateProcess`` because npm installs them as ``sf.CMD`` / ``sf.ps1`` (no
+    ``.exe``).  Resolve to the full path here so all callers get correct
+    Windows behaviour without each one needing to call ``which_cli()`` first.
     """
+    if cmd and cmd[0] in ("sf", "sfdx"):
+        resolved, _ = which_cli()
+        cmd = [resolved, *cmd[1:]]
     proc = subprocess.run(
         cmd,
         capture_output=True,
