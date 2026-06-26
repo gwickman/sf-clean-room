@@ -158,7 +158,7 @@ Source: Salesforce SOAP API WSDL (via jsforce TypeScript definitions); cross-val
 | `anyType` | Polymorphic value field (used by certain standard fields such as `Value` on `CustomField`). |
 | `location` | Geolocation compound field storing latitude and longitude as a unit. Component `latitude` and `longitude` sub-fields are separately queryable. |
 | `time` | Time of day (no date component). Format `hh:mm:ss.SSS` in API results. |
-| `encryptedstring` | A Classic Encryption field. Values are encrypted at rest using AES-128. Users with the "View Encrypted Data" permission receive the decrypted value in API responses; users without it receive a masked value (asterisks). Cannot be used in SOQL WHERE, ORDER BY, GROUP BY, or aggregate functions. Distinct from Salesforce Shield Platform Encryption, which operates transparently at the database layer and does not change the field type. |
+| `encryptedstring` | A Classic Encryption field. Values are encrypted at rest using AES-128. Maximum length is 175 characters. Users with the "View Encrypted Data" permission receive the decrypted value in API responses; users without it receive a masked value. Distinct from Salesforce Shield Platform Encryption, which operates transparently at the database layer and does **not** change the field's `type` — a Shield-encrypted email field still appears as `email` in the describe response. |
 | `address` | Compound address field aggregating component address sub-fields (Street, City, State, PostalCode, Country, Latitude, Longitude, GeocodeAccuracy). The compound field itself is not directly queryable; its component fields are. |
 | `complexvalue` | A structured complex value used by certain Salesforce platform objects. Not a user-facing custom field type. |
 
