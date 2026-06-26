@@ -1,6 +1,21 @@
 # CLAUDE.md — sf-clean-room
 
-Project-specific guidance for AI coding agents working in this repository. Read `docs/01-design-v1.md` (the `get_metadata` contract) and `docs/02-design-v2.md` (the `get_records` contract) before making changes; they are authoritative. This file points at the parts that are easy to break by accident. Testing is covered by `docs/regression-testing.md`.
+Project-specific guidance for AI coding agents working in this repository. The design docs (see §Design documents below) are authoritative — read the relevant one before making changes. This file points at the parts that are easy to break by accident.
+
+## Design documents
+
+| Doc | Covers |
+|---|---|
+| `docs/01-design-v1.md` | `get_metadata` — authoritative contract |
+| `docs/02-design-v2.md` | `get_records` — authoritative contract |
+| `docs/03-design-2.1.md` | `get_metadata` v2.1 — limited-permissions resilience |
+| `docs/04-design-v3.md` | `get_event_logs` — authoritative contract |
+| `docs/05-design-v4.md` | `get_technical_objects` — authoritative contract |
+| `docs/ideation/salesforce-security-health-check.md` | `get_security_health_check` — output reference |
+| `docs/ideation/salesforce-code-analyser.md` | `get_code_analysis` — output reference |
+| `docs/ideation/` | Goals and principles behind the full command family |
+| `docs/docs-change-log.md` | Decision history and version-to-version evolution |
+| `docs/regression-testing.md` | Testing guide for chatbot-driven live regression |
 
 ## Source control
 

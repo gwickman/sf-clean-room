@@ -251,19 +251,3 @@ If a denied type is genuinely needed for a legitimate use case, the correct resp
 
 The same rule applies to every other safety-critical surface of this tool: the narrow CLI flag set, the fixed temp/log/config locations, the scrub stage contract, the sentinel-ordered publish. Operator agents do not edit them.
 
----
-
-## Design
-
-`docs/01-design-v1.md` — authoritative contract for `get_metadata`.
-`docs/02-design-v2.md` — authoritative contract for `get_records`.
-`docs/03-design-2.1.md` — v2.1 limited-permissions resilience for `get_metadata`.
-`docs/04-design-v3.md` — authoritative contract for `get_event_logs`.
-`docs/05-design-v4.md` — authoritative contract for `get_technical_objects`.
-
-Ideation documents for `get_security_health_check` and `get_code_analysis` are in `docs/ideation/salesforce-security-health-check.md` and `docs/ideation/salesforce-code-analyser.md`.
-
-`docs/ideation/` — goals and principles behind the full command family.
-`docs/docs-change-log.md` — decision history and version-to-version evolution.
-`docs/regression-testing.md` — testing guide for chatbot-driven live regression.
-`CLAUDE.md` — invariants easy to break by accident; guidance for code-generation agents.
