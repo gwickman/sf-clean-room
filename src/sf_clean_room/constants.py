@@ -10,7 +10,8 @@ RETRIEVE_TIMEOUT_SECS: Final[int] = 1800
 
 # Salesforce hard limit per retrieve is 10,000; default below for safety headroom.
 MAX_COMPONENTS_PER_BATCH: Final[int] = 8000
-# Weight ceiling targets Salesforce's ~600 MB compressed-zip limit per retrieve.
+# Dimensionless proxy weight ceiling. Official limits: ~39 MB compressed SOAP ZIP
+# (50 MB SOAP message ceiling after base-64 overhead), 400 MB uncompressed extraction.
 MAX_WEIGHT_PER_BATCH: Final[int] = 50_000
 
 FOLDERED: Final[dict[str, str]] = {
