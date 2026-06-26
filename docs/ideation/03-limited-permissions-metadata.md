@@ -30,7 +30,7 @@ The job: make `get_metadata` resilient to per-type permission and capability gap
 Same as v1 ([`01-metadata-ideation.md`](01-metadata-ideation.md) §2). The new twist is the **authenticated identity** the operator uses:
 
 - **Full-permission identity.** Sysadmin-or-equivalent. Today's expected case, still supported with zero behaviour change.
-- **Limited-permission identity.** Custom profile / permission set with a narrowed metadata surface — the BAFTA-`bafta.grant.wickman@vrpconsulting.com` shape: Modify Metadata granted, but no view on a handful of types (DecisionTable, Apex source, etc.). The new supported case.
+- **Limited-permission identity.** Custom profile / permission set with a narrowed metadata surface — e.g. Modify Metadata granted, but no view on a handful of types (DecisionTable, Apex source, etc.). The new supported case.
 
 The operator/maintainer split (v1 §2) is unchanged: the operator runs the tool, never weakens it; the deny list and other source-controlled lists remain source-only.
 

@@ -4,7 +4,7 @@ Project-specific guidance for AI coding agents working in this repository. Read 
 
 ## Source control — exception to the no-commit policy
 
-The VRP AI Usage Policy hard-prohibits an AI agent from staging, committing, pushing, or opening PRs/MRs on a user's behalf. **This repository is an explicit exception to that prohibition.** sf-clean-room is not a client repository — it is internal tooling built to *support* the AI Usage Policy, by providing structurally-safe extraction of Salesforce metadata and records for AI consumption. An AI coding agent working in this repo may stage, commit, and push here when asked.
+sf-clean-room is internal tooling, not a client repository. An AI coding agent working in this repo may stage, commit, and push here when asked.
 
 Normal good practice still applies: never commit secrets or extracted data (`.test-output/` and credentials stay out of version control), write clear commit messages, and don't rewrite already-published history.
 
