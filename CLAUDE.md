@@ -11,6 +11,8 @@ Project-specific guidance for AI coding agents working in this repository. The d
 | `docs/design/03-design-2.1.md` | `get_metadata` v2.1 — limited-permissions resilience |
 | `docs/design/04-design-v3.md` | `get_event_logs` — authoritative contract |
 | `docs/design/05-design-v4.md` | `get_technical_objects` — authoritative contract |
+| `docs/reference/salesforce-metadata-api-reference.md` | Metadata API schema reference (describeMetadata, listMetadata, retrieve, limits) |
+| `docs/reference/salesforce-records-schema.md` | sObject Describe + SOQL response schema; FieldType and ExtraTypeInfo enums |
 | `docs/reference/salesforce-security-health-check.md` | `get_security_health_check` — output reference |
 | `docs/reference/salesforce-code-analyser.md` | `get_code_analysis` — output reference |
 | `docs/00-design-principles.md` | Goals and principles behind the full command family |
