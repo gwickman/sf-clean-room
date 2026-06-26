@@ -1,8 +1,8 @@
 # SF Clean Room — Implementation Plan (v2.1: limited-permissions metadata)
 
 **Status:** Plan for the v2.1 implementation.
-**Authoritative contract:** [`03-design-2.1.md`](03-design-2.1.md). Where this plan and the design disagree, the design wins.
-**Companion ideation:** [`ideation/03-limited-permissions-metadata.md`](ideation/03-limited-permissions-metadata.md).
+**Authoritative contract:** [`03-design-2.1.md`](../design/03-design-2.1.md). Where this plan and the design disagree, the design wins.
+**Companion requirements:** [`03-limited-permissions-metadata.md`](../requirements/03-limited-permissions-metadata.md).
 
 This is the executable plan for an implementation agent. It is ordered: each step builds on the previous. Where a step has a verification gate, the gate names the artefact the agent must inspect before moving on.
 
@@ -10,7 +10,7 @@ This is the executable plan for an implementation agent. It is ordered: each ste
 
 ## 0. Pre-flight (one-time)
 
-1. Confirm editable install (per [`regression-testing.md`](regression-testing.md) §1) resolves to `src/`, not site-packages.
+1. Confirm editable install (per [`regression-testing.md`](../regression-testing.md) §1) resolves to `src/`, not site-packages.
 2. Run the full existing offline suite (`pytest -q`). **Gate:** every existing test passes before any v2.1 work begins. If any test is red on baseline, stop and surface to Grant — do not start on top of a broken tree.
 3. Create the feature branch.
 
@@ -202,7 +202,7 @@ Stderr tee: at the run-summary line, include a one-line skip summary:
 
 ## 9. Tests — live (chatbot-driven)
 
-Two live runs, per [`regression-testing.md`](regression-testing.md) §2:
+Two live runs, per [`regression-testing.md`](../regression-testing.md) §2:
 
 ### 9.1 Full-permission identity (always runnable)
 

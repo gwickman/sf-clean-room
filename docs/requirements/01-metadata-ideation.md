@@ -1,8 +1,8 @@
 # 01 — Metadata Export (v1): Goals and Requirements
 
 **Status:** Ideation / rationale companion to the v1 contract.
-**Governed by:** [`00-design-principles.md`](00-design-principles.md) — the family-wide principles this version instantiates.
-**Authoritative contract:** [`../01-design-v1.md`](../01-design-v1.md). Where this document and the design disagree, the design wins; flag the drift.
+**Governed by:** [`00-design-principles.md`](../00-design-principles.md) — the family-wide principles this version instantiates.
+**Authoritative contract:** [`01-design-v1.md`](../design/01-design-v1.md). Where this document and the design disagree, the design wins; flag the drift.
 
 This document sits one altitude above the design. The design says *what the tool does and how*; this says *what problem v1 solves, for whom, and which requirements the design is satisfying*. It exists so that a later reader (human or agent) can judge whether a proposed change still serves the original goals.
 

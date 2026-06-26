@@ -2,7 +2,7 @@
 
 **Status:** Draft → being implemented.
 **Scope:** The third tool in the family — safe export of Salesforce **EventLogFile** data via the `get_event_logs` subcommand. v1 (`get_metadata`) and v2 (`get_records`) are unchanged.
-**Principles:** [`ideation/00-design-principles.md`](ideation/00-design-principles.md). **Goals/requirements:** [`ideation/04-event-log-download.md`](ideation/04-event-log-download.md). **Schema:** [`ideation/salesforce-event-log-reference.md`](ideation/salesforce-event-log-reference.md). **Field classification:** [`ideation/04-event-log-fields.md`](ideation/04-event-log-fields.md). **Decision history:** [`docs-change-log.md`](docs-change-log.md). **Companion plan:** [`04-plan-v3.md`](04-plan-v3.md).
+**Principles:** [`00-design-principles.md`](../00-design-principles.md). **Goals/requirements:** [`04-event-log-download.md`](../requirements/04-event-log-download.md). **Schema:** [`salesforce-event-log-reference.md`](../reference/salesforce-event-log-reference.md). **Field classification:** [`04-event-log-fields.md`](../requirements/04-event-log-fields.md). **Decision history:** [`docs-change-log.md`](../docs-change-log.md). **Companion plan:** [`04-plan-v3.md`](../plan/04-plan-v3.md).
 
 This document is the authoritative v3 contract.
 
@@ -19,12 +19,12 @@ The download mechanism is the one proven in `ai-framework`'s `salesforce_downloa
 - **Read-only.** Only REST `GET` (`/query` and `/sobjects/EventLogFile/{id}/LogFile`). No write path. (A4)
 - **No raw dump.** The raw `LogFile` body lives only in process memory; only the post-classification CSV is written. There is no code path that writes a raw event-log row to disk. (A2)
 - **Abstraction.** The agent reads the published folder; it never holds a Salesforce session or the raw download. (A1)
-- **Classifier = the safety boundary, source-controlled, rule-based.** Every column is resolved by the rules in [`04-event-log-fields.md`](ideation/04-event-log-fields.md) §2; the rules cover every column of every EventType (drift-safe). A reviewed plan may override, with special-category-style justification for the risky direction.
+- **Classifier = the safety boundary, source-controlled, rule-based.** Every column is resolved by the rules in [`04-event-log-fields.md`](../requirements/04-event-log-fields.md) §2; the rules cover every column of every EventType (drift-safe). A reviewed plan may override, with special-category-style justification for the risky direction.
 - **Pseudonymous output.** Output is keyed by Salesforce IDs, never names/emails.
 
 ## 3. Classification actions
 
-`RAW` (Salesforce IDs + opaque/pre-hashed correlation keys), `HASH` (`USER_NAME`, `DELEGATED_USER_NAME`, `DEVICE_ID` — frozen, unsalted `sha256`), `DERIVE` (IP → network prefix; URL → host+path, query stripped), `PASS` (metrics, enums, names, Salesforce-provided geo), `DROP` (free-text/content/secrets). Full per-column mapping: [`04-event-log-fields.md`](ideation/04-event-log-fields.md). Reuses `hashing.hash_id`.
+`RAW` (Salesforce IDs + opaque/pre-hashed correlation keys), `HASH` (`USER_NAME`, `DELEGATED_USER_NAME`, `DEVICE_ID` — frozen, unsalted `sha256`), `DERIVE` (IP → network prefix; URL → host+path, query stripped), `PASS` (metrics, enums, names, Salesforce-provided geo), `DROP` (free-text/content/secrets). Full per-column mapping: [`04-event-log-fields.md`](../requirements/04-event-log-fields.md). Reuses `hashing.hash_id`.
 
 ## 4. CLI surface
 
@@ -102,7 +102,7 @@ Exit code: 0 on completed publish (including the no-op and empty cases), non-zer
 
 ## Appendix A — Implementation plan
 
-Detailed in [`04-plan-v3.md`](04-plan-v3.md). High-level:
+Detailed in [`04-plan-v3.md`](../plan/04-plan-v3.md). High-level:
 
 1. `eventlog_classify.py` — column classifier (rules), IP-prefix derive, URL sanitise; reuses `hashing.hash_id`.
 2. `eventlog_download.py` — REST: describe-Interval check, EventLogFile query, per-record LogFile fetch **into memory**; window/resume/idempotent date logic (from the proven tool).

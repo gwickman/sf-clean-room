@@ -2,7 +2,7 @@
 
 **Status:** Draft → being implemented.
 **Scope:** The second tool in the family — safe record/data export via the `get_records` subcommand. v1 (`get_metadata`) is unchanged; see [`01-design-v1.md`](01-design-v1.md).
-**Principles:** [`ideation/00-design-principles.md`](ideation/00-design-principles.md). **Goals/requirements rationale:** [`ideation/02-data-download.md`](ideation/02-data-download.md). **Decision history:** [`docs-change-log.md`](docs-change-log.md).
+**Principles:** [`00-design-principles.md`](../00-design-principles.md). **Goals/requirements rationale:** [`02-data-download.md`](../requirements/02-data-download.md). **Decision history:** [`docs-change-log.md`](../docs-change-log.md).
 
 This document is the authoritative v2 contract. It states what the tool does; the ideation doc states why.
 
@@ -138,6 +138,6 @@ Exit code: 0 on completed publish (including empty extracts), non-zero on any ab
 - CLI parser: `get_records` flags; `--where` requires `--only`; top-level + per-command help; help runs without auth.
 - Full regression: the entire existing v1 suite must stay green.
 
-**Live (opt-in, chatbot-driven — see [`regression-testing.md`](regression-testing.md)):**
+**Live (opt-in, chatbot-driven — see [`regression-testing.md`](../regression-testing.md)):**
 - Org from `tests/live_org.toml` (default `example-dev-edition`); auto-skip if not authenticated.
 - `get_records --dry-run` produces a plan; a real run produces TSVs + sentinel; audit shows no DROP field leaked; re-run is deterministic; v1 `get_metadata` still publishes with `package.xml`.

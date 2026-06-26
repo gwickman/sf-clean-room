@@ -1,6 +1,6 @@
 """Technical-objects classifier (the safety boundary for get_technical_objects).
 
-Two layers (from docs/ideation/05-technical-objects.md §3):
+Two layers (from docs/requirements/05-technical-objects.md §3):
   Layer 0: structural skip — field types / names that are NEVER selected.  Applied
            at SOQL-build time in technical_download.py, not here.
   Layer 1: first-match-wins classification of selected fields (this module).

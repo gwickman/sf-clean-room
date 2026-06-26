@@ -2,7 +2,7 @@
 
 No field classification: the artefact contains only org configuration data
 (scores, enabled/disabled settings) — no user identifiers, no PII, no
-customer record data.  See docs/ideation/salesforce-security-health-check.md.
+customer record data.  See docs/reference/salesforce-security-health-check.md.
 """
 from __future__ import annotations
 

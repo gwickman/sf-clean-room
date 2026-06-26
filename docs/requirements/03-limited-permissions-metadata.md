@@ -1,8 +1,8 @@
 # 03 — Metadata Export under Limited Permissions: Goals and Requirements
 
 **Status:** Ideation. Input to a future `03-design-2.1.md`.
-**Governed by:** [`00-design-principles.md`](00-design-principles.md) — read it first.
-**Companions:** [`01-metadata-ideation.md`](01-metadata-ideation.md) and the v1 contract [`../01-design-v1.md`](../01-design-v1.md). The change targets `get_metadata`; it does not affect `get_records`.
+**Governed by:** [`00-design-principles.md`](../00-design-principles.md) — read it first.
+**Companions:** [`01-metadata-ideation.md`](01-metadata-ideation.md) and the v1 contract [`01-design-v1.md`](../design/01-design-v1.md). The change targets `get_metadata`; it does not affect `get_records`.
 
 This document sits one altitude above a future design. The design will say *what the v2.1 tool does and how*; this says *what problem v2.1 solves, for whom, and which requirements that design must satisfy*. It exists so a later reader can judge whether a proposed change still serves the original goals.
 

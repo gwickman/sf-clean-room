@@ -2,8 +2,8 @@
 
 **Status:** Draft.
 **Scope:** A minor evolution of the family. v2.1 extends `get_metadata` (v1) so that limited-permission identities produce a usable, self-describing publish instead of aborting on the first per-type permission gap. v2 (`get_records`) is unchanged; v1 (`get_metadata`) full-permission behaviour is unchanged except for the new self-describing artefacts in §8.
-**Principles:** [`ideation/00-design-principles.md`](ideation/00-design-principles.md). **Goals/requirements rationale:** [`ideation/03-limited-permissions-metadata.md`](ideation/03-limited-permissions-metadata.md). **Authoritative v1 contract:** [`01-design-v1.md`](01-design-v1.md). **Decision history:** [`docs-change-log.md`](docs-change-log.md).
-**Companion plan:** [`03-plan-2.1.md`](03-plan-2.1.md).
+**Principles:** [`00-design-principles.md`](../00-design-principles.md). **Goals/requirements rationale:** [`03-limited-permissions-metadata.md`](../requirements/03-limited-permissions-metadata.md). **Authoritative v1 contract:** [`01-design-v1.md`](01-design-v1.md). **Decision history:** [`docs-change-log.md`](../docs-change-log.md).
+**Companion plan:** [`03-plan-2.1.md`](../plan/03-plan-2.1.md).
 
 This document is the authoritative v2.1 contract. It states what the tool does; the ideation doc states why.
 
@@ -200,7 +200,7 @@ No consumer that reads only `package.xml` and the metadata folders needs to chan
 
 ## Appendix A — Implementation plan (summary)
 
-Detailed step-by-step in [`03-plan-2.1.md`](03-plan-2.1.md). High-level:
+Detailed step-by-step in [`03-plan-2.1.md`](../plan/03-plan-2.1.md). High-level:
 
 1. **`constants.py`:** add `ALWAYS_PROBE_TYPES`, `SKIP_BUCKETS`, `MAX_SKIP_DETAIL_LEN`, `SYNTHETIC_FOLDERS`. (`FOLDERED` already exists for folder mapping; no `MAX_REGISTRY_MISS_STRIPS` — no pre-flight.)
 2. **`enumerate_md.py`:** per-type `listMetadata` made fault-tolerant; bucket classification of errors; union with `ALWAYS_PROBE_TYPES`; folder two-step already present — add fault tolerance + synthetic folders + folder-as-type.

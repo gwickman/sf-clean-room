@@ -1,8 +1,8 @@
 # 05 — Technical Objects Download: Goals and Requirements
 
-**Status:** Ideation. Input to [`../05-design-v4.md`](../05-design-v4.md).
-**Governed by:** [`00-design-principles.md`](00-design-principles.md) — read it first.
-**Schema source (authoritative):** [`salesforce-technical-objects.md`](salesforce-technical-objects.md) — field-level reference for all 40 objects, with per-field "data content to inspect" notes and a sensitivity summary table. This doc is the *classification and requirements overlay* on that reference.
+**Status:** Ideation. Input to [`05-design-v4.md`](../design/05-design-v4.md).
+**Governed by:** [`00-design-principles.md`](../00-design-principles.md) — read it first.
+**Schema source (authoritative):** [`salesforce-technical-objects.md`](../reference/salesforce-technical-objects.md) — field-level reference for all 40 objects, with per-field "data content to inspect" notes and a sensitivity summary table. This doc is the *classification and requirements overlay* on that reference.
 **Companions:** the record model [`02-data-download.md`](02-data-download.md) and the event-log model [`04-event-log-download.md`](04-event-log-download.md) — v4 sits between them: describe-driven field enumeration like records, pseudonymous-activity handling like event logs.
 
 ---

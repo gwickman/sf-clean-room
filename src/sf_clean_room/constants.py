@@ -81,7 +81,7 @@ def weight_for(type_name: str) -> int:
 #
 # Source-only, like the deny list: no CLI flag, env var, or config entry. Adding
 # a type to ALWAYS_PROBE_TYPES is a maintainer change with review. See
-# docs/03-design-2.1.md.
+# docs/design/03-design-2.1.md.
 # ---------------------------------------------------------------------------
 
 # Types describeMetadata may hide from identities lacking view-source perms.
@@ -130,7 +130,7 @@ def classify_skip_bucket(message: str) -> str:
 #
 # These drive the recommendation engine in ``classify.py``. They are source
 # constants (like the metadata deny list) but, unlike the deny list, they
-# produce *recommendations* a reviewed plan may override (see docs/02-design-v2.md).
+# produce *recommendations* a reviewed plan may override (see docs/design/02-design-v2.md).
 # ---------------------------------------------------------------------------
 
 # Classifier actions.

@@ -1,6 +1,6 @@
 # 04 — Event Log Field Classification (overlay on the schema reference)
 
-**Schema source (authoritative):** [`salesforce-event-log-reference.md`](salesforce-event-log-reference.md) — a field-by-field reference for 65 EventLogFile EventTypes, built from observed CSV headers. That doc is the *schema*; **this doc is the classification overlay** — for each column (or column pattern) it gives the handling action and why. It does not repeat the per-type tables.
+**Schema source (authoritative):** [`salesforce-event-log-reference.md`](../reference/salesforce-event-log-reference.md) — a field-by-field reference for 65 EventLogFile EventTypes, built from observed CSV headers. That doc is the *schema*; **this doc is the classification overlay** — for each column (or column pattern) it gives the handling action and why. It does not repeat the per-type tables.
 **Companion:** [`04-event-log-download.md`](04-event-log-download.md) (the requirements).
 
 ---

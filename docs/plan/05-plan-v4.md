@@ -1,7 +1,7 @@
 # SF Clean Room — Implementation Plan (v4: `get_technical_objects`)
 
-**Authoritative contract:** [`05-design-v4.md`](05-design-v4.md). Where this plan and the design disagree, the design wins.
-**Grounding:** the proven `ai-framework` tool `salesforce_download_technical_objects.py` + its routing JSON (`salesforce_standard_object_metadata.json`), and the field-level schema reference [`ideation/salesforce-technical-objects.md`](ideation/salesforce-technical-objects.md).
+**Authoritative contract:** [`05-design-v4.md`](../design/05-design-v4.md). Where this plan and the design disagree, the design wins.
+**Grounding:** the proven `ai-framework` tool `salesforce_download_technical_objects.py` + its routing JSON (`salesforce_standard_object_metadata.json`), and the field-level schema reference [`salesforce-technical-objects.md`](../reference/salesforce-technical-objects.md).
 
 Ordered; each step names its gate.
 

@@ -2,7 +2,7 @@
 
 **Status:** Draft — for review before implementation.
 **Scope:** The fourth tool in the family — safe export of the 40 Salesforce **technical objects** (Tooling entities, system tables, REST metrics endpoints). v1–v3 are unchanged.
-**Principles:** [`ideation/00-design-principles.md`](ideation/00-design-principles.md). **Goals/requirements:** [`ideation/05-technical-objects.md`](ideation/05-technical-objects.md). **Schema:** [`ideation/salesforce-technical-objects.md`](ideation/salesforce-technical-objects.md). **Decision history:** [`docs-change-log.md`](docs-change-log.md). **Companion plan:** [`05-plan-v4.md`](05-plan-v4.md).
+**Principles:** [`00-design-principles.md`](../00-design-principles.md). **Goals/requirements:** [`05-technical-objects.md`](../requirements/05-technical-objects.md). **Schema:** [`salesforce-technical-objects.md`](../reference/salesforce-technical-objects.md). **Decision history:** [`docs-change-log.md`](../docs-change-log.md). **Companion plan:** [`05-plan-v4.md`](../plan/05-plan-v4.md).
 
 This document is the authoritative v4 contract.
 
@@ -98,4 +98,4 @@ A consumer reading a `--path` containing `_field-handling-applied.csv` may assum
 
 ## Appendix A — Implementation plan (summary)
 
-Detailed in [`05-plan-v4.md`](05-plan-v4.md): (1) `technical_catalog.py` — the 40-object catalogue constant; (2) `technical_classify.py` — Layer-0 skip + Layer-1 rules + curated overrides; (3) `technical_download.py` — describe/query/queryMore/Tooling/REST/EntityDefinition transports (injectable HTTP); (4) `technical_pipeline.py` — orchestrator + dry-run + audit/summary/publish; (5) plan support; (6) `cli.py` subcommand + help; (7) tests offline (classifier table, curated overrides, pagination, per-object skip, no-raw-dump leak checks) + live against the test org; (8) docs: README (C8), `regression-testing.md` (C7), change log.
+Detailed in [`05-plan-v4.md`](../plan/05-plan-v4.md): (1) `technical_catalog.py` — the 40-object catalogue constant; (2) `technical_classify.py` — Layer-0 skip + Layer-1 rules + curated overrides; (3) `technical_download.py` — describe/query/queryMore/Tooling/REST/EntityDefinition transports (injectable HTTP); (4) `technical_pipeline.py` — orchestrator + dry-run + audit/summary/publish; (5) plan support; (6) `cli.py` subcommand + help; (7) tests offline (classifier table, curated overrides, pagination, per-object skip, no-raw-dump leak checks) + live against the test org; (8) docs: README (C8), `regression-testing.md` (C7), change log.

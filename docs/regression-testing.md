@@ -344,7 +344,7 @@ Verify:
 
 > **Expected on a small DE org:** the metadata tree is likely minimal (few Apex classes, no LWC, no static resources with known vulnerabilities). `violation_counts.total` may be low or zero. What matters is the command completes, the sentinel is present, and the JSON is valid — not the violation count.
 
-> **Note on plugin version:** the Code Analyzer output schema depends on the installed plugin version. The ideation document (`docs/ideation/salesforce-code-analyser.md`) describes schema observed for plugin 5.x. If the plugin version differs, minor JSON shape changes are expected.
+> **Note on plugin version:** the Code Analyzer output schema depends on the installed plugin version. The reference document (`docs/reference/salesforce-code-analyser.md`) describes schema observed for plugin 5.x. If the plugin version differs, minor JSON shape changes are expected.
 
 ---
 

@@ -6,14 +6,14 @@ Project-specific guidance for AI coding agents working in this repository. The d
 
 | Doc | Covers |
 |---|---|
-| `docs/01-design-v1.md` | `get_metadata` — authoritative contract |
-| `docs/02-design-v2.md` | `get_records` — authoritative contract |
-| `docs/03-design-2.1.md` | `get_metadata` v2.1 — limited-permissions resilience |
-| `docs/04-design-v3.md` | `get_event_logs` — authoritative contract |
-| `docs/05-design-v4.md` | `get_technical_objects` — authoritative contract |
-| `docs/ideation/salesforce-security-health-check.md` | `get_security_health_check` — output reference |
-| `docs/ideation/salesforce-code-analyser.md` | `get_code_analysis` — output reference |
-| `docs/ideation/` | Goals and principles behind the full command family |
+| `docs/design/01-design-v1.md` | `get_metadata` — authoritative contract |
+| `docs/design/02-design-v2.md` | `get_records` — authoritative contract |
+| `docs/design/03-design-2.1.md` | `get_metadata` v2.1 — limited-permissions resilience |
+| `docs/design/04-design-v3.md` | `get_event_logs` — authoritative contract |
+| `docs/design/05-design-v4.md` | `get_technical_objects` — authoritative contract |
+| `docs/reference/salesforce-security-health-check.md` | `get_security_health_check` — output reference |
+| `docs/reference/salesforce-code-analyser.md` | `get_code_analysis` — output reference |
+| `docs/00-design-principles.md` | Goals and principles behind the full command family |
 | `docs/docs-change-log.md` | Decision history and version-to-version evolution |
 | `docs/regression-testing.md` | Testing guide for chatbot-driven live regression |
 
@@ -40,7 +40,7 @@ The operator of this CLI is an AI agent, not a person. Design decisions consiste
 
 These are load-bearing. If a change touches any of them, it is not a routine change; flag it.
 
-1. **Deny list is source-only.** The list of excluded metadata types (`docs/01-design-v1.md` §6) is a constant in source. There must be no CLI flag, env var, config-file entry, or runtime mechanism that loosens it. "Add a flag to opt back in" is the wrong answer to every question.
+1. **Deny list is source-only.** The list of excluded metadata types (`docs/design/01-design-v1.md` §6) is a constant in source. There must be no CLI flag, env var, config-file entry, or runtime mechanism that loosens it. "Add a flag to opt back in" is the wrong answer to every question.
 2. **Two-phase output.** Retrieve and extract land in a per-run temp directory. The published path is only mutated at the final publish step (§5.6). Do not collapse these phases.
 3. **`package.xml` is the sentinel.** It is the *last* file moved into the published path. Consumers treat its presence as the signal that the publish completed. Anything that writes `package.xml` before the rest of the tree is in place is a bug.
 4. **Fail closed.** Any error in retrieve, extract, or scrub aborts the publish. The published path is either the previous run's output or the new run's output — never a partial mix (except in the narrow §8 atomicity gap, which is documented and bounded).
@@ -112,4 +112,4 @@ Verify with `python -c "import sf_clean_room.audit, inspect; print(inspect.getfi
 
 ## When in doubt
 
-Re-read `docs/01-design-v1.md`. If the design is ambiguous, surface the ambiguity rather than picking silently. The design is short on purpose; gaps are usually intentional and worth a conversation.
+Re-read `docs/design/01-design-v1.md`. If the design is ambiguous, surface the ambiguity rather than picking silently. The design is short on purpose; gaps are usually intentional and worth a conversation.

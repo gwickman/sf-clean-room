@@ -39,7 +39,7 @@ enumerate → filter → batch → retrieve+extract (to temp) → scrub (no-op i
 * **Scrub** — pluggable stage list. v1 ships one no-op stage; the contract exists so secret scanners, PII hashers, and content rewriters can plug in later without changing the consumer-visible output.
 * **Publish** — clear the publish directory, move every file into it, and move `package.xml` **last**. The presence of `package.xml` is the consumer's signal that the publish is complete.
 
-Fail-closed: any error before publish leaves the publish path untouched (with one narrow caveat documented in `docs/01-design-v1.md` §8). The per-run temp directory is retained on failure for inspection.
+Fail-closed: any error before publish leaves the publish path untouched (with one narrow caveat documented in `docs/design/01-design-v1.md` §8). The per-run temp directory is retained on failure for inspection.
 
 ---
 
@@ -123,7 +123,7 @@ A consumer should **not** act on a `--path` that lacks `package.xml`: the publis
 ### Exit codes
 
 * `0` — publish completed (including the "no components after filtering" case, which still produces an empty manifest).
-* non-zero — aborted. Publish path is untouched, or — in the narrow atomicity gap described in `docs/01-design-v1.md` §8 — missing its `package.xml` sentinel. Either way, the sentinel rule is sound: no `package.xml`, no consume.
+* non-zero — aborted. Publish path is untouched, or — in the narrow atomicity gap described in `docs/design/01-design-v1.md` §8 — missing its `package.xml` sentinel. Either way, the sentinel rule is sound: no `package.xml`, no consume.
 
 ---
 
@@ -160,7 +160,7 @@ requires a justification in `[reasons.<Object>]`; without one the field is
 downgraded to DROP and the downgrade is reported (the run does not abort).
 
 The sentinel is `_field-handling-applied.csv` (the audit), moved into `--path`
-last. No sentinel ⇒ do not consume. See `docs/02-design-v2.md` for the full
+last. No sentinel ⇒ do not consume. See `docs/design/02-design-v2.md` for the full
 contract.
 
 ---
@@ -187,7 +187,7 @@ each run adds a new dated subfolder (prior ones are never cleared — this build
 history beyond Salesforce's ~30-day retention), `end = yesterday (UTC)`, and a run
 that already covers through yesterday is a no-op. The sentinel
 `_field-handling-applied.csv` is moved into the subfolder last. See
-`docs/04-design-v3.md`.
+`docs/design/04-design-v3.md`.
 
 ## Testing
 

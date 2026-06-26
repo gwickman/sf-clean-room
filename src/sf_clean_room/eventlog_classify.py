@@ -1,7 +1,7 @@
 """Event-log column classifier (the safety boundary for get_event_logs).
 
 Resolves each EventLogFile CSV column to an action, applying the rules in
-docs/ideation/04-event-log-fields.md (first match wins). Source-controlled, like
+docs/requirements/04-event-log-fields.md (first match wins). Source-controlled, like
 the metadata deny list and the get_records classifier. Pure and heavily tested.
 
 Key facts that shape the rules (from the schema reference):

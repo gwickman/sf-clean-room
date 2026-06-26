@@ -5,7 +5,7 @@ disk (the output of get_metadata).  The metadata folder MUST contain
 package.xml (the get_metadata sentinel) as a pre-condition.
 
 Output: HTML + CSV + JSON from the analyser, plus a _summary.json sentinel.
-See docs/ideation/salesforce-code-analyser.md for the schema reference.
+See docs/reference/salesforce-code-analyser.md for the schema reference.
 """
 from __future__ import annotations
 

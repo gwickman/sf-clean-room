@@ -30,7 +30,7 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ## 2026-06-24 — `get_security_health_check` (v5) + `get_code_analysis` (v6) implemented
 
-**Change.** Fifth and sixth commands implemented. Ideation/output references in `docs/ideation/salesforce-security-health-check.md` and `docs/ideation/salesforce-code-analyser.md`.
+**Change.** Fifth and sixth commands implemented. Output references in `docs/reference/salesforce-security-health-check.md` and `docs/reference/salesforce-code-analyser.md`.
 
 **`get_security_health_check` — new module `security_pipeline.py`:**
 - Fetches org security posture via the Tooling API: `SELECT Id, Score FROM SecurityHealthCheck` (one row) + `SELECT RiskType, Setting, SettingGroup, OrgValue, StandardValue FROM SecurityHealthCheckRisks` (one row per evaluated setting, paged via `nextRecordsUrl`).
@@ -58,7 +58,7 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ## 2026-06-10 — `get_technical_objects` (v4) implemented
 
-**Change.** Fourth command implemented. Contract in `05-design-v4.md`; requirements in `ideation/05-technical-objects.md`; plan in `05-plan-v4.md`.
+**Change.** Fourth command implemented. Contract in `docs/design/05-design-v4.md`; requirements in `docs/requirements/05-technical-objects.md`; plan in `docs/plan/05-plan-v4.md`.
 
 **New modules:**
 - `technical_catalog.py` — source-controlled 40-object catalogue with API routing (`soql`, `tooling`, `entitydef`, `rest_limits`, `rest_recordcount`) and Layer-0 skip constants (`LAYER0_SKIP_TYPES`, `LAYER0_SKIP_NAMES`). The catalogue is a pure constant; no runtime mechanism adds objects or disables the skip list.
@@ -139,7 +139,7 @@ Event Monitoring data. Recorded in `regression-testing.md` §4b.
 
 ## 2026-06-05 — `get_metadata` v2.1: limited-permissions resilience (implemented)
 
-**Change.** Implemented v2.1 (`docs/03-design-2.1.md`): per-type fault tolerance
+**Change.** Implemented v2.1 (`docs/design/03-design-2.1.md`): per-type fault tolerance
 for `get_metadata` so a limited-permission identity gets a usable, self-describing
 publish instead of aborting on the first permission gap. New modules `skip_log.py`
 (the run's `SkipLog`) and `manifest.py` (build/parse `package.xml`); `constants.py`
@@ -196,7 +196,7 @@ authenticated; the tool never auto-authenticates).
 
 ## 2026-06-04 — `get_records` (v2) designed, implemented, and tested
 
-**Change.** Added the v2 contract `docs/02-design-v2.md` and implemented the
+**Change.** Added the v2 contract `docs/design/02-design-v2.md` and implemented the
 `get_records` subcommand end-to-end, with a full offline test suite and a
 chatbot-driven regression guide.
 

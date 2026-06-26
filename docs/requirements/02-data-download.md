@@ -1,8 +1,8 @@
 # 02 — Record / Data Download (v2): Goals and Requirements
 
 **Status:** Ideation. No contract yet; this is the input to a future `02-design-v2.md`.
-**Governed by:** [`00-design-principles.md`](00-design-principles.md) — read it first.
-**Companion:** [`01-metadata-ideation.md`](01-metadata-ideation.md) and the v1 contract [`../01-design-v1.md`](../01-design-v1.md).
+**Governed by:** [`00-design-principles.md`](../00-design-principles.md) — read it first.
+**Companion:** [`01-metadata-ideation.md`](01-metadata-ideation.md) and the v1 contract [`01-design-v1.md`](../design/01-design-v1.md).
 
 ---
 

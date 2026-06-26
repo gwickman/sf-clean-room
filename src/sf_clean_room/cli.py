@@ -390,7 +390,7 @@ Data classification
 Score and per-setting values are org configuration data — no user identifiers,
 no IP addresses, no customer record data. OrgValue is the only org-specific
 field; it carries values like "Enabled", "Disabled", or numeric counts. The
-full classification rationale is in docs/ideation/salesforce-security-health-check.md.
+full classification rationale is in docs/reference/salesforce-security-health-check.md.
 
 Source API
 ----------
@@ -457,7 +457,7 @@ Data classification
 Violation messages contain code-derived identifiers (variable names, method names,
 API versions, CVE IDs, library names) — not customer record data. The message field
 does NOT embed source-code bodies. The full classification rationale is in
-docs/ideation/salesforce-code-analyser.md.
+docs/reference/salesforce-code-analyser.md.
 
 Examples
 --------

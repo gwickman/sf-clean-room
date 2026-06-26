@@ -1,8 +1,8 @@
 # 04 — Event Log Download: Goals and Requirements
 
 **Status:** Ideation. Input to a future design. Scope here is **requirements and useful-information extraction** — *not* the technical mechanics of downloading EventLogFile data (deferred).
-**Governed by:** [`00-design-principles.md`](00-design-principles.md) — read it first.
-**Companions:** the schema reference [`salesforce-event-log-reference.md`](salesforce-event-log-reference.md) (65 EventTypes, observed CSV headers); the classification overlay [`04-event-log-fields.md`](04-event-log-fields.md); the record-data model [`02-data-download.md`](02-data-download.md) (the classifier/plan pattern this reuses).
+**Governed by:** [`00-design-principles.md`](../00-design-principles.md) — read it first.
+**Companions:** the schema reference [`salesforce-event-log-reference.md`](../reference/salesforce-event-log-reference.md) (65 EventTypes, observed CSV headers); the classification overlay [`04-event-log-fields.md`](04-event-log-fields.md); the record-data model [`02-data-download.md`](02-data-download.md) (the classifier/plan pattern this reuses).
 
 ---
 

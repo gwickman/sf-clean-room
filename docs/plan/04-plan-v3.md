@@ -1,6 +1,6 @@
 # SF Clean Room — Implementation Plan (v3: `get_event_logs`)
 
-**Authoritative contract:** [`04-design-v3.md`](04-design-v3.md). Where this and the design disagree, the design wins.
+**Authoritative contract:** [`04-design-v3.md`](../design/04-design-v3.md). Where this and the design disagree, the design wins.
 **Grounding:** the proven `ai-framework` tool `salesforce_download_eventlog_files` (REST query + per-record `LogFile` fetch, window/resume/idempotent logic). The one change: classify in memory, never write the raw body.
 
 Ordered; each step names its verification gate.
@@ -10,7 +10,7 @@ Ordered; each step names its verification gate.
 
 ## 1. `eventlog_classify.py`
 The classifier (pure, the heart). Reuses `hashing.hash_id`.
-- `classify_column(name) -> (action, recipe)` implementing [`04-event-log-fields.md`](ideation/04-event-log-fields.md) §2, first-match-wins: IP→DERIVE(prefix); SF-geo (`COUNTRY_CODE`,`CLIENT_GEO`)→PASS; URL/URI→DERIVE(url); human/device ids (`USER_NAME`,`DELEGATED_USER_NAME`,`DEVICE_ID`)→HASH; content names (`QUERY`,`SEARCH_QUERY`,`*MESSAGE`,`STACK_TRACE`,`ACCESS_ERROR`,`ERROR_DESCRIPTION`,`HTTP_HEADERS`,`CONTEXT_MAP`,`RESOURCE_SAMPLE`,`DATA`,`*_REASON`,`DOWNLOAD_ERROR`, OData `FILTER`/`SELECT`/`SEARCH`/`ORDERBY`/`EXPAND`,`DESCRIPTION`)→DROP; ids/correlation keys (`*_ID`,`*_ID_DERIVED`,`REQUEST_ID`,`ORGANIZATION_ID`,`USER_ID`,`SESSION_KEY`,`LOGIN_KEY`,`BOT_*`,`*_SESSION_ID`,`QUERY_ID`,`CORRELATION_ID`,`SQL_ID`,`QUERY_IDENTIFIER`,`SERVER_REQUEST_ID`,`UI_*_ID`)→RAW; else PASS, with a content-name fallback→DROP.
+- `classify_column(name) -> (action, recipe)` implementing [`04-event-log-fields.md`](../requirements/04-event-log-fields.md) §2, first-match-wins: IP→DERIVE(prefix); SF-geo (`COUNTRY_CODE`,`CLIENT_GEO`)→PASS; URL/URI→DERIVE(url); human/device ids (`USER_NAME`,`DELEGATED_USER_NAME`,`DEVICE_ID`)→HASH; content names (`QUERY`,`SEARCH_QUERY`,`*MESSAGE`,`STACK_TRACE`,`ACCESS_ERROR`,`ERROR_DESCRIPTION`,`HTTP_HEADERS`,`CONTEXT_MAP`,`RESOURCE_SAMPLE`,`DATA`,`*_REASON`,`DOWNLOAD_ERROR`, OData `FILTER`/`SELECT`/`SEARCH`/`ORDERBY`/`EXPAND`,`DESCRIPTION`)→DROP; ids/correlation keys (`*_ID`,`*_ID_DERIVED`,`REQUEST_ID`,`ORGANIZATION_ID`,`USER_ID`,`SESSION_KEY`,`LOGIN_KEY`,`BOT_*`,`*_SESSION_ID`,`QUERY_ID`,`CORRELATION_ID`,`SQL_ID`,`QUERY_IDENTIFIER`,`SERVER_REQUEST_ID`,`UI_*_ID`)→RAW; else PASS, with a content-name fallback→DROP.
 - `derive_ip_prefix(value)` — IPv4 last octet→`0`; IPv6 last 80 bits→`::`; empty→empty.
 - `sanitise_url(value)` — keep scheme+host+path, drop `?...` and `;...`; empty→empty.
 - `transform_value(action, value, name)` — RAW/PASS as-is; HASH→`hash_id`; DERIVE→ip-prefix or url-sanitise by which rule matched; DROP→(column omitted upstream).
