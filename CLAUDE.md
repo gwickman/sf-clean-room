@@ -10,10 +10,14 @@ Normal good practice still applies: never commit secrets or extracted data (`.te
 
 ## What this tool is
 
-`sf-clean-room` is an **AI-operated CLI** with two commands under one dispatcher:
+`sf-clean-room` is an **AI-operated CLI** with six commands under one dispatcher:
 
 - `get_metadata` — exports Salesforce **metadata** to a folder safe for downstream automated consumers. Safety is structural: sensitive metadata categories are filtered out at enumeration, before any `retrieve`. Sentinel: `package.xml`.
 - `get_records` — exports Salesforce **record data**, anonymised in flight: every field is classified and DROP/HASH applied before any value is written, so raw PII never reaches a published file. Read-only (describe + `SELECT` only). Sentinel: `_field-handling-applied.csv`.
+- `get_event_logs` — exports **EventLogFile** activity data, anonymised in flight, incrementally (one dated subfolder per run). IPs → network prefix, usernames hashed, URLs query-stripped. Sentinel: `_field-handling-applied.csv`.
+- `get_technical_objects` — exports **40 technical objects** (Tooling entities, system tables, REST endpoints), anonymised in flight via a two-layer classifier. Snapshot publish model (clear-and-republish). Sentinel: `_field-handling-applied.csv`.
+- `get_security_health_check` — exports the org's **Security Health Check** score and per-setting risk table via the Tooling API. No classifier — all org-configuration data. Sentinel: `securityhealthcheck_<alias>.json`.
+- `get_code_analysis` — runs **Salesforce Code Analyzer** locally over a `get_metadata` output folder. No Salesforce session; requires the `sf code-analyzer` plugin. Sentinel: `_summary.json`.
 
 The operator of this CLI is an AI agent, not a person. Design decisions consistently favour predictability and discoverability over flexibility.
 
@@ -25,7 +29,15 @@ These are load-bearing. If a change touches any of them, it is not a routine cha
 2. **Two-phase output.** Retrieve and extract land in a per-run temp directory. The published path is only mutated at the final publish step (§5.6). Do not collapse these phases.
 3. **`package.xml` is the sentinel.** It is the *last* file moved into the published path. Consumers treat its presence as the signal that the publish completed. Anything that writes `package.xml` before the rest of the tree is in place is a bug.
 4. **Fail closed.** Any error in retrieve, extract, or scrub aborts the publish. The published path is either the previous run's output or the new run's output — never a partial mix (except in the narrow §8 atomicity gap, which is documented and bounded).
-5. **CLI surface is narrow.** The dispatcher exposes `--help` and `--version` at the top level. `get_metadata` exposes `--org-alias`, `--path`, `--dry-run` — nothing else (no `--temp-root`, `--exclude`, `--include`, `--skip-scrub`). `get_records` exposes `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run` — all of which are *narrowing/specification* inputs (object scope, row predicate, the reviewed classification plan); none disables the classifier or the read-only/no-raw-dump guarantees. New tools are new subcommands, not new flags on existing ones.
+5. **CLI surface is narrow.** The dispatcher exposes `--help` and `--version` at the top level. Per-command flag surfaces (complete lists — no other flags exist):
+   - `get_metadata`: `--org-alias`, `--path`, `--dry-run`
+   - `get_records`: `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run`
+   - `get_event_logs`: `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run`
+   - `get_technical_objects`: `--org-alias`, `--path`, `--plan`, `--only`, `--limit`, `--dry-run`
+   - `get_security_health_check`: `--org-alias`, `--path`, `--dry-run`
+   - `get_code_analysis`: `--org-alias`, `--metadata-path`, `--path`, `--dry-run`
+
+   All flags are *narrowing/specification* inputs; none disables a classifier, loosens the deny list, or bypasses the read-only/no-raw-dump guarantees. New capabilities are new subcommands, not new flags on existing ones.
 6. **`get_records` is read-only and never dumps raw values.** It issues only describe and `SELECT` queries; there is no write path. The raw query result stays in process memory; DROP fields are never selected; HASH/DERIVE is applied before any value is written. Do not add a path that writes a raw, unclassified extract to disk.
 7. **The classifier is source-controlled.** Its rules live in `constants.py`/`classify.py` and produce *recommendations*. A reviewed plan may override them, but special-category keeps require a justification (else they downgrade to DROP) — do not remove that enforcement, and do not make the classifier itself runtime-overridable.
 8. **No library API.** Only the CLI entry point. Importing internals from another Python process is not a supported integration path.
@@ -60,7 +72,7 @@ enumerate -> filter -> batch -> retrieve+extract (to temp) -> scrub (no-op in v1
 
 ## What goes in source vs config vs CLI
 
-- **CLI:** only the five flags above.
+- **CLI:** only the flags listed in Invariant 5 above.
 - **Config file** (fixed location, see §7.1): `temp_root` override. Nothing else in v1.
 - **Source constants:** deny list, type weights, batch ceilings, API version, OS-aware default temp/log paths.
 

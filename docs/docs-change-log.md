@@ -6,6 +6,56 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-06-26 — Windows `[WinError 2]` fix: `run_cli_text` now resolves bare `sf`/`sfdx`
+
+**Change.** `sfcli.py:run_cli_text` now calls `which_cli()` to resolve bare `"sf"` or `"sfdx"` to the full CLI path before passing it to `subprocess.run`. The fix is central — all callers benefit without each one needing to call `which_cli()` first.
+
+**Root cause.** On Windows, npm installs the CLI as `sf.CMD` / `sf.ps1` — there is no `sf.exe`. `subprocess.run(["sf", ...], shell=False)` calls `CreateProcess`, which only auto-appends `.exe` and does not consult `PATHEXT`. The existing pipelines (`metadata`, `records`, `event_logs`, `technical_objects`, `security_health_check`) avoided this by calling `which_cli()` themselves before building commands; `code_analysis_pipeline` passed bare `"sf"` directly and hit `FileNotFoundError [WinError 2]`, blocking `get_code_analysis` entirely on Windows.
+
+**Fix.** Two lines in `run_cli_text`: check `cmd[0] in ("sf", "sfdx")`, call `which_cli()`, replace. On POSIX `which_cli()` returns `/usr/local/bin/sf` (or similar) — effectively a no-op. A bare `"sf"` that was correct on POSIX before is equally correct after; a bare `"sf"` that was broken on Windows is now fixed.
+
+**Tests.** New `tests/test_sfcli.py` — 8 tests covering: `which_cli` finds `sf`/`sfdx`/neither, `run_cli_text` resolves bare `sf`, resolves bare `sfdx`, leaves full paths unchanged, surfaces `SfCliError` (not `FileNotFoundError`) when CLI is not on PATH, surfaces `SfCliError` on non-zero exit.
+
+**Full offline suite:** 342 passed, 3 skipped.
+
+---
+
+## 2026-06-26 — Test org switched to `sf_clean_room` (dedicated DE)
+
+**Change.** `tests/live_org.toml` changed from `test_org = "example-prodcopy"` to `test_org = "sf_clean_room"`. The `sf_clean_room` alias was copied from the default SF CLI profile (`~/.sfdx/`) to the project-profile profile (`~/.sfdx/`). `docs/regression-testing.md` updated throughout to reference `sf_clean_room` instead of `example-dev-edition` / `example-prodcopy`.
+
+**Why.** `sf_clean_room` is the dedicated Developer Edition org for testing this tool — a clean, safe target that carries no client data. Using a named test org for regression is cleaner than pointing at a client-data copy.
+
+---
+
+## 2026-06-24 — `get_security_health_check` (v5) + `get_code_analysis` (v6) implemented
+
+**Change.** Fifth and sixth commands implemented. Ideation/output references in `docs/ideation/salesforce-security-health-check.md` and `docs/ideation/salesforce-code-analyser.md`.
+
+**`get_security_health_check` — new module `security_pipeline.py`:**
+- Fetches org security posture via the Tooling API: `SELECT Id, Score FROM SecurityHealthCheck` (one row) + `SELECT RiskType, Setting, SettingGroup, OrgValue, StandardValue FROM SecurityHealthCheckRisks` (one row per evaluated setting, paged via `nextRecordsUrl`).
+- No classifier — the data is org-configuration metadata, not PII or user data.
+- Sentinel: `securityhealthcheck_<org_alias>.json` (score + full risk table), moved into `--path` last.
+- Injectable `get_fn` for offline testing (no live org or Salesforce session needed in tests).
+- Key implementation note: `"SecurityHealthCheck"` is a substring of `"SecurityHealthCheckRisks"` — the URL-key dispatch in `_tooling_query` must check the more-specific key first.
+
+**`get_code_analysis` — new module `code_analysis_pipeline.py`:**
+- Runs `sf code-analyzer run` locally against a `get_metadata` output folder. No Salesforce session — the analyser reads files on disk.
+- Pre-conditions checked before any real work: (1) `sf code-analyzer` plugin present (`run_cli_text(["sf", "code-analyzer", "run", "--help"])`); (2) `--metadata-path` is a directory containing `package.xml` (the `get_metadata` sentinel).
+- Output: `code_analyser_results_<alias>.html`, `.csv`, `.json` + `_summary.json` sentinel. Sentinel is written last.
+- 1-hour timeout ceiling (`subprocess.TimeoutExpired` → `RuntimeError`).
+- `SENTINEL_NAME = "_summary.json"` (module-level constant, not a function).
+
+**CLI.** Both subcommands added to `cli.py`. Flags:
+- `get_security_health_check`: `--org-alias`, `--path`, `--dry-run`.
+- `get_code_analysis`: `--org-alias`, `--metadata-path`, `--path`, `--dry-run`. `--org-alias` is for naming and audit only — no session is opened.
+
+**Tests.** `tests/test_security_pipeline.py` (10 tests: sentinel name, dry-run score report, execute writes sentinel, sentinel is valid JSON, risks preserved, no-records raises, API error raises, publish path untouched on error, pagination via `nextRecordsUrl`). `tests/test_code_analysis_pipeline.py` (15 tests: pre-condition failures, output file names, sentinel-last mtime, CLI args forwarded, failure isolation).
+
+**Full offline suite at time of implementation:** 334 passed, 3 skipped (v1 + v2 + v2.1 + v3 + v4 + v5 + v6).
+
+---
+
 ## 2026-06-10 — `get_technical_objects` (v4) implemented
 
 **Change.** Fourth command implemented. Contract in `05-design-v4.md`; requirements in `ideation/05-technical-objects.md`; plan in `05-plan-v4.md`.

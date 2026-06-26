@@ -55,21 +55,23 @@ incl. sentinel and no-DROP-leak (`test_records_pipeline.py`), and the CLI surfac
 Configured in [`../tests/live_org.toml`](../tests/live_org.toml):
 
 ```toml
-test_org = "example-prodcopy"
+test_org = "sf_clean_room"
 output_dir = ".test-output"
 ```
+
+`sf_clean_room` is a dedicated Developer Edition org used exclusively for testing this tool. It carries no client data.
 
 **Check it exists before using it** (this is the existence guard the design
 assumes):
 
 ```powershell
-sf org display --target-org example-prodcopy --json
+sf org display --target-org sf_clean_room --json
 ```
 
 - If this returns a connected session → live testing is enabled.
 - If it errors / is not authenticated → **stop. Report to the user** that the
   test org is not available and that they can enable live tests with
-  `sf org login web --alias example-dev-edition`. Do not log in yourself.
+  `sf org login web --alias sf_clean_room`. Do not log in yourself.
 
 To run the automated live tests (they auto-skip when the org is unavailable):
 
@@ -82,7 +84,7 @@ python -m pytest -m live -q
 Drive the real CLI and inspect what lands on disk. Output under `.test-output/`.
 
 ```powershell
-$org  = "example-dev-edition"
+$org  = "sf_clean_room"
 $out  = ".test-output\$org\Contact"
 $plan = ".test-output\$org-contact-plan.toml"
 
@@ -144,8 +146,8 @@ Confirm metadata export still works after any shared-code change (`publish.py`,
 `pipeline.py`):
 
 ```powershell
-sf-clean-room get_metadata --org-alias example-dev-edition --path .test-output\meta --dry-run
-sf-clean-room get_metadata --org-alias example-dev-edition --path .test-output\meta
+sf-clean-room get_metadata --org-alias sf_clean_room --path .test-output\meta --dry-run
+sf-clean-room get_metadata --org-alias sf_clean_room --path .test-output\meta
 ```
 
 Verify:
@@ -182,7 +184,7 @@ limited-permission code paths with mocks regardless.
 ## 4b. Chatbot-driven live regression — `get_event_logs` (v3)
 
 ```powershell
-$org = "example-dev-edition"
+$org = "sf_clean_room"
 sf-clean-room get_event_logs --org-alias $org --path .test-output --dry-run
 sf-clean-room get_event_logs --org-alias $org --path .test-output
 sf-clean-room get_event_logs --org-alias $org --path .test-output   # again -> idempotent no-op
@@ -217,7 +219,7 @@ Verify:
 ## 4c. Chatbot-driven live regression — `get_technical_objects` (v4)
 
 ```powershell
-$org = "example-dev-edition"
+$org = "sf_clean_room"
 
 # Dry-run: describe + classify all 40 objects (some will fail with permission gaps on dev edition).
 sf-clean-room get_technical_objects --org-alias $org --path .test-output\techobj --dry-run --plan .test-output\techobj-plan.toml
@@ -274,6 +276,77 @@ Record any additional unexplained skips in this file (principle C7: surface, don
 > (`adam.durant@yo.co.va`). This is not a code bug — the plan review step is the
 > designed safeguard. **Recommended action before any scheduled headless run:**
 > add `Username__c = "HASH_ID"` to `[overrides.Contact]` in the plan file.
+
+## 4d. Chatbot-driven live regression — `get_security_health_check` (v5)
+
+```powershell
+$org = "sf_clean_room"
+$out = ".test-output\shc"
+
+# Dry-run: query score only; no publish-path mutation.
+sf-clean-room get_security_health_check --org-alias $org --path $out --dry-run
+
+# Real run: fetch score + all risk rows; publish sentinel JSON.
+sf-clean-room get_security_health_check --org-alias $org --path $out
+
+# Re-run: snapshot overwrites cleanly.
+sf-clean-room get_security_health_check --org-alias $org --path $out
+```
+
+Verify:
+
+- Dry-run: exit 0; prints the score; **no file written** to `$out`.
+- Real run: exit 0; `securityhealthcheck_<org>.json` present in `$out` (this is the sentinel and the only output file).
+- Sentinel is valid JSON with the structure:
+  ```json
+  { "SecurityHealthCheck": {"Id": "...", "Score": <int>}, "Risks": [...], "risk_count": <int> }
+  ```
+- `SecurityHealthCheck.Score` is an integer 0–100.
+- `Risks` is a non-empty array (DE orgs have at least some settings evaluated); each element has `RiskType`, `Setting`, `SettingGroup`, `OrgValue`, `StandardValue`.
+- `risk_count` equals `len(Risks)`.
+- Re-run: sentinel is replaced; JSON is valid; `Score` and risk list reflect the current org state.
+
+---
+
+## 4e. Chatbot-driven live regression — `get_code_analysis` (v6)
+
+This command runs locally against a completed `get_metadata` output — it requires no Salesforce session. Run §4 (`get_metadata`) first so a `package.xml` exists.
+
+**Pre-condition check:**
+```powershell
+sf plugins --json | ConvertFrom-Json | Select-String "code-analyzer"
+```
+If the plugin is absent, stop and report. Do not install it — that is the user's decision.
+
+```powershell
+$org      = "sf_clean_room"
+$meta     = ".test-output\meta"        # must contain package.xml from §4
+$out      = ".test-output\code-analysis"
+
+# Dry-run: validates plugin present + package.xml present; no analysis run.
+sf-clean-room get_code_analysis --org-alias $org --metadata-path $meta --path $out --dry-run
+
+# Real run: runs sf code-analyzer, publishes report + sentinel (may take several minutes).
+sf-clean-room get_code_analysis --org-alias $org --metadata-path $meta --path $out
+```
+
+Verify:
+
+- Dry-run: exit 0; lists the three output file names and `_summary.json`; nothing written to `$out`.
+- Real run: exit 0; `$out` contains:
+  - `code_analyser_results_<org>.html`
+  - `code_analyser_results_<org>.csv`
+  - `code_analyser_results_<org>.json`
+  - `_summary.json` (the sentinel — must be present; must be last by mtime)
+- `_summary.json` is valid JSON with keys `org_alias`, `violation_counts`, `engine_versions`, `output_files`.
+- `violation_counts.total` is a non-negative integer.
+- Re-run: `$out` is replaced cleanly; `_summary.json` reflects the new run.
+
+> **Expected on a small DE org:** the metadata tree is likely minimal (few Apex classes, no LWC, no static resources with known vulnerabilities). `violation_counts.total` may be low or zero. What matters is the command completes, the sentinel is present, and the JSON is valid — not the violation count.
+
+> **Note on plugin version:** the Code Analyzer output schema depends on the installed plugin version. The ideation document (`docs/ideation/salesforce-code-analyser.md`) describes schema observed for plugin 5.x. If the plugin version differs, minor JSON shape changes are expected.
+
+---
 
 ## 5. Reporting back
 

@@ -14,13 +14,15 @@ The safety guarantee is structural, not behavioural: anything sensitive is exclu
 | `get_records` | Export org **record data**, anonymised in flight. Every field is classified (RAW / DROP / HASH / PASS / DERIVE); raw PII never reaches disk. A reviewed plan persists the classification for headless, scheduled re-runs. | `_field-handling-applied.csv` |
 | `get_event_logs` | Export org **EventLogFile** activity data, anonymised in flight and **incrementally** — each run adds a dated subfolder, building history beyond Salesforce's ~30-day retention. IPs → network prefix, URLs → query-stripped, usernames hashed, free text dropped; Salesforce IDs kept as join keys. | `_field-handling-applied.csv` |
 | `get_technical_objects` | Export **40 catalogued technical objects** (Tooling entities, system tables, REST metrics endpoints), anonymised in flight. Covers Apex code health, job machinery, privilege topology, login/session/MFA activity, setup audit history, usage telemetry, and org limits. IPs → network prefix, geo coarsened to country/subdivision, emails/usernames hashed, free text dropped; permission bits and IDs kept whole. Snapshot publish model (clear-and-republish). | `_field-handling-applied.csv` |
+| `get_security_health_check` | Export the org's **Security Health Check** score and per-setting risk table (HIGH_RISK / MEDIUM_RISK / LOW_RISK / INFORMATIONAL / MEETS_STANDARD) via the Tooling API. All org-configuration data — no classifier, no PII. Snapshot publish model (overwrites on each run). | `securityhealthcheck_<alias>.json` |
+| `get_code_analysis` | Run **Salesforce Code Analyzer** (`sf code-analyzer`) over a local `get_metadata` output folder and publish the HTML + CSV + JSON report. **No Salesforce session** — runs locally against files on disk. Requires the `sf code-analyzer` plugin and a completed `get_metadata` run (i.e. `package.xml` must be present in `--metadata-path`). | `_summary.json` |
 
 ```bash
 sf-clean-room --help                       # tool overview + command list
 sf-clean-room <command> --help             # full per-command contract
 ```
 
-Together these give an AI agent a safe, local, joinable picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), and its *technical internals* (`get_technical_objects`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All four commands are read-only, fail closed, audit every run, and support `--dry-run`.
+Together these give an AI agent a safe, local picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), its *technical internals* (`get_technical_objects`), its *security posture* (`get_security_health_check`), and its *code quality and vulnerabilities* (`get_code_analysis`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All commands are read-only, fail closed, and audit every run. All support `--dry-run`. (`get_code_analysis` requires no Salesforce session — it runs locally over a prior `get_metadata` output.)
 
 ---
 
@@ -65,13 +67,15 @@ sf-clean-room --help                       # top-level: lists available commands
 sf-clean-room get_metadata --help          # per-command: full contract
 ```
 
-All commands share authentication, the audit log, the temp-then-publish discipline, and the sentinel-last publish rule:
+All commands share the audit log, the temp-then-publish discipline, and the sentinel-last publish rule. Per-command help:
 
 ```bash
-sf-clean-room get_metadata           --help   # metadata export contract
-sf-clean-room get_records            --help   # record export contract
-sf-clean-room get_event_logs         --help   # event-log export contract
-sf-clean-room get_technical_objects  --help   # technical objects export contract
+sf-clean-room get_metadata                --help   # metadata export contract
+sf-clean-room get_records                 --help   # record export contract
+sf-clean-room get_event_logs              --help   # event-log export contract
+sf-clean-room get_technical_objects       --help   # technical objects export contract
+sf-clean-room get_security_health_check   --help   # security health check contract
+sf-clean-room get_code_analysis           --help   # code analysis contract
 ```
 
 ---
@@ -194,7 +198,7 @@ python -m pytest -q                                        # offline suite (no o
 
 Real / regression testing against a live org is **chatbot-driven** and described
 in `docs/regression-testing.md`. The test org is configured in
-`tests/live_org.toml` (default `example-dev-edition`); live `pytest` tests
+`tests/live_org.toml` (default `sf_clean_room`); live `pytest` tests
 (`-m live`) and the chatbot-driven steps auto-skip / stop when that org is not
 authenticated — the harness never logs in for you. Live output lands under
 `.test-output/` (gitignored).
@@ -251,8 +255,15 @@ The same rule applies to every other safety-critical surface of this tool: the n
 
 ## Design
 
-`docs/01-design-v1.md` is the authoritative contract for `get_metadata`: pipeline, exclusions, failure modes, output guarantee, audit log, atomicity gap, and the constraints that the CLI surface deliberately omits.
+`docs/01-design-v1.md` — authoritative contract for `get_metadata`.
+`docs/02-design-v2.md` — authoritative contract for `get_records`.
+`docs/03-design-2.1.md` — v2.1 limited-permissions resilience for `get_metadata`.
+`docs/04-design-v3.md` — authoritative contract for `get_event_logs`.
+`docs/05-design-v4.md` — authoritative contract for `get_technical_objects`.
 
-`docs/02-design-v2.md` is the authoritative contract for `get_records`: the classifier, the plan/override model, special-category handling, headless runs, and the output guarantee. `docs/ideation/` holds the goals/principles behind both; `docs/docs-change-log.md` holds decision history; `docs/regression-testing.md` is the testing guide.
+Ideation documents for `get_security_health_check` and `get_code_analysis` are in `docs/ideation/salesforce-security-health-check.md` and `docs/ideation/salesforce-code-analyser.md`.
 
-`CLAUDE.md` lists the invariants that are easy to break by accident and is intended for any code-generation agent working in this repo.
+`docs/ideation/` — goals and principles behind the full command family.
+`docs/docs-change-log.md` — decision history and version-to-version evolution.
+`docs/regression-testing.md` — testing guide for chatbot-driven live regression.
+`CLAUDE.md` — invariants easy to break by accident; guidance for code-generation agents.
