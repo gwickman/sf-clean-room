@@ -77,7 +77,7 @@ enumerate -> filter -> batch -> retrieve+extract (to temp) -> scrub (no-op in v1
 ```
 
 - Enumeration uses `describeMetadata` + per-type / per-folder `listMetadata`.
-- Batching is **weight-aware**, not just count-aware. Heavy types (bundles, composites) carry per-type weight multipliers. The 10,000-component and ~600 MB compressed-zip limits per retrieve are real; weight-aware batching is what keeps multi-batch runs correct.
+- Batching is **weight-aware**, not just count-aware. Heavy types (bundles, composites) carry per-type weight multipliers. The 10,000-component-per-retrieve ceiling and the SOAP ZIP size limits (39 MB compressed / 400 MB uncompressed) are real; weight-aware batching is what keeps multi-batch runs correct. See `docs/reference/salesforce-metadata-api-reference.md` §8.
 - Extraction must be safe on Windows: zip-slip prevention, `\\?\` long-path prefix, filename sanitisation (illegal chars, trailing dots/spaces, over-long components shortened with a stable hash suffix), and a `_path_renames.csv` audit trail published with the rest of the output.
 - The scrub stage list exists in v1 with a single no-op stage. The orchestration code and the stage contract (returns Clean or Findings) are real; the scanners are not yet. Future scanners plug in here without changing the consumer-visible contract.
 
