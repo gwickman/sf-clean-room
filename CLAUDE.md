@@ -2,9 +2,9 @@
 
 Project-specific guidance for AI coding agents working in this repository. Read `docs/01-design-v1.md` (the `get_metadata` contract) and `docs/02-design-v2.md` (the `get_records` contract) before making changes; they are authoritative. This file points at the parts that are easy to break by accident. Testing is covered by `docs/regression-testing.md`.
 
-## Source control — exception to the no-commit policy
+## Source control
 
-sf-clean-room is internal tooling, not a client repository. An AI coding agent working in this repo may stage, commit, and push here when asked.
+This is internal tooling, not a client repository. An AI coding agent working in this repo may stage, commit, and push here when asked.
 
 Normal good practice still applies: never commit secrets or extracted data (`.test-output/` and credentials stay out of version control), write clear commit messages, and don't rewrite already-published history.
 
