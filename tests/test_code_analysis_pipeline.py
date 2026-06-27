@@ -14,6 +14,7 @@ import pytest
 from sf_clean_room.audit import audit_log
 from sf_clean_room.code_analysis_pipeline import (
     SENTINEL_NAME,
+    _check_java,
     _check_metadata,
     _check_plugin,
     _stem,
@@ -223,7 +224,7 @@ def test_execute_analyzer_failure_does_not_publish(tmp_path):
     assert (publish_path / "old_file.txt").read_text(encoding="utf-8") == "prior"
 
 
-def test_execute_passes_correct_target_to_cli(tmp_path):
+def test_execute_passes_workspace_and_target_to_cli(tmp_path):
     meta = _metadata_dir(tmp_path)
     publish_path = tmp_path / "out"
     publish_path.mkdir()
@@ -242,8 +243,49 @@ def test_execute_passes_correct_target_to_cli(tmp_path):
         with audit_log(_ALIAS, log_dir=tmp_path / "logs") as log:
             execute(_ALIAS, meta, publish_path, tmp_path / "temp", log)
 
-    # The run command (not --help) should have --target pointing at metadata_path
     run_cmd = [c for c in captured_cmds if "run" in c and "--target" in c]
     assert run_cmd, "sf code-analyzer run command not captured"
-    target_idx = run_cmd[0].index("--target") + 1
-    assert Path(run_cmd[0][target_idx]) == meta.resolve()
+    cmd = run_cmd[0]
+    target_idx = cmd.index("--target") + 1
+    assert Path(cmd[target_idx]) == meta.resolve()
+    # --workspace must be present and equal to the metadata path so the command
+    # is cwd-independent (without it, sf code-analyzer defaults workspace to cwd
+    # and rejects targets that don't sit underneath it).
+    assert "--workspace" in cmd, "--workspace flag must be passed"
+    ws_idx = cmd.index("--workspace") + 1
+    assert Path(cmd[ws_idx]) == meta.resolve()
+
+
+# ---------------------------------------------------------------------------
+# _check_java
+# ---------------------------------------------------------------------------
+
+def test_check_java_present(tmp_path):
+    with patch("sf_clean_room.code_analysis_pipeline.shutil.which", return_value="/usr/bin/java"):
+        with audit_log(_ALIAS, log_dir=tmp_path / "logs") as log:
+            result = _check_java(log)
+    assert result is True
+
+
+def test_check_java_missing_returns_false_and_warns(tmp_path):
+    with patch("sf_clean_room.code_analysis_pipeline.shutil.which", return_value=None):
+        with audit_log(_ALIAS, log_dir=tmp_path / "logs") as log:
+            result = _check_java(log)
+    assert result is False
+    log_text = (tmp_path / "logs").glob("*.log")
+    content = next(log_text).read_text(encoding="utf-8")
+    assert "java" in content.lower()
+    assert "PMD" in content or "pmd" in content.lower()
+
+
+def test_execute_proceeds_when_java_missing(tmp_path):
+    """Java absence should warn but not abort — sf code-analyzer itself handles engine failures."""
+    meta = _metadata_dir(tmp_path)
+    publish_path = tmp_path / "out"
+    publish_path.mkdir()
+    stub = _make_run_cli_text_stub(_ALIAS)
+    with patch("sf_clean_room.code_analysis_pipeline.shutil.which", return_value=None):
+        with patch("sf_clean_room.code_analysis_pipeline.run_cli_text", side_effect=stub):
+            with audit_log(_ALIAS, log_dir=tmp_path / "logs") as log:
+                execute(_ALIAS, meta, publish_path, tmp_path / "temp", log)
+    assert (publish_path / SENTINEL_NAME).exists()

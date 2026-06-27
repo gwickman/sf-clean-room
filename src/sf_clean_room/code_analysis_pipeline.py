@@ -10,6 +10,7 @@ See docs/reference/salesforce-code-analyser.md for the schema reference.
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import uuid
 from pathlib import Path
@@ -36,6 +37,26 @@ def _check_plugin(log: AuditLog) -> None:
     log.write("sf code-analyzer plugin: available")
 
 
+def _check_java(log: AuditLog) -> bool:
+    """Return True if java is on PATH; log a warning and return False if not.
+
+    PMD, CPD and sfge engines all require Java 11+.  In headless / scheduled
+    runs java is often absent from the inherited PATH even when it is available
+    interactively.  The tool still passes --workspace/--target to sf code-analyzer
+    and lets it report engine-load failures rather than aborting here, but the
+    warning makes the root cause immediately visible in the audit log / stdout.
+    """
+    if shutil.which("java") is None:
+        log.write(
+            "WARNING: java not found on PATH — PMD, CPD and sfge engines will be "
+            "unavailable (Apex rules require Java 11+). Install a JRE/JDK 11+ and "
+            "ensure it is on the system PATH (or set JAVA_HOME). Analysis will run "
+            "with eslint/retire-js/regex engines only."
+        )
+        return False
+    return True
+
+
 def _check_metadata(metadata_path: Path) -> None:
     """Raise if metadata_path is missing or has no package.xml sentinel."""
     if not metadata_path.is_dir():
@@ -57,6 +78,7 @@ def dry_run(org_alias: str, metadata_path: Path, log: AuditLog) -> str:
     """Validate pre-conditions and report what the real run would do."""
     log.section("dry-run validate")
     _check_plugin(log)
+    _check_java(log)
     _check_metadata(metadata_path)
     log.write(f"metadata path ok: {metadata_path}")
     stem = _stem(org_alias)
@@ -82,6 +104,7 @@ def execute(
 ) -> Path:
     """Run sf code-analyzer over the metadata folder and publish the results."""
     _check_plugin(log)
+    _check_java(log)
     _check_metadata(metadata_path)
 
     run_temp = (temp_root / f"codeanalysis-{uuid.uuid4().hex[:8]}").resolve()
@@ -96,12 +119,13 @@ def execute(
     log.section("analyse")
     cmd = [
         "sf", "code-analyzer", "run",
+        "--workspace", str(metadata_path),
         "--target", str(metadata_path),
         "--output-file", str(html_path),
         "--output-file", str(csv_path),
         "--output-file", str(json_path),
     ]
-    log.write(f"command: sf code-analyzer run --target <metadata> (3 output formats)")
+    log.write("command: sf code-analyzer run --workspace <metadata> --target <metadata> (3 output formats)")
     try:
         run_cli_text(cmd, timeout=3600)
     except SfCliError as e:
