@@ -1,5 +1,54 @@
 # sf-clean-room
 
+sf-clean-room is a Python application that lets a flagship AI agent help analyse a Salesforce org without granting the agent direct access to the org or to confidential information.
+
+For an architect or consultant with a corporate AI, it is tempting to let the AI do much of the heavy lifting when analysing a client org. But pointing an AI agent directly at a client org will, in most cases, breach both your company's AI usage policy and your client agreements. Few governance policies permit an AI to connect to a production org, and most treat the consumption of confidential data or PII by an AI as a data breach.
+
+sf-clean-room is designed to keep the AI useful while staying inside those policies. For known schemas (event logs, setup audit trails, login history and the like) it hashes useful PII such as email addresses, so records still join and match, and drops the higher-risk columns that carry little practical value. For dynamic schemas, such as data drawn from custom objects, it hashes or drops the obvious violations and provides utilities and procedures that reduce the chance of accidental data leakage.
+
+## Use and responsibility
+
+The tool reduces risk; it does not remove it. Ensuring compliance with your AI usage policy, your client agreements, and applicable data-protection law remains the sole responsibility of the user of the AI and the tool. The repository provides cookbooks and procedures to help reduce that risk.
+
+sf-clean-room is licensed under the Apache License 2.0 and is distributed on an "as is" basis, without warranties or conditions of any kind. See the [LICENSE](LICENSE) file for the full terms, including the disclaimer of warranty and limitation of liability.
+
+---
+
+## When to use it
+
+Use sf-clean-room wherever you need a safe, structured read of a Salesforce org: one-off assessments (health, security, technical debt), pre-sales scoping and estimation, ongoing governance and managed-services monitoring, audit and incident work, documentation, and cross-client benchmarking.
+
+**Assess and advise**
+- Org health check
+- Security review
+- Well-Architected review
+- Technical-debt scorecard, with month-on-month trend
+- Automation rationalisation (Workflow Rule / Process Builder → Flow)
+- Data-model rationalisation (unused fields, empty objects, data skew)
+
+**Win and scope work**
+- Pre-sales and discovery of an unfamiliar org
+- Evidence-based estimation
+- Due diligence, M&A, and org consolidation
+
+**Run and govern**
+- Continuous governance and standards checks
+- Config-drift and permission-creep detection
+- Managed-services health monitoring
+- Audit and compliance evidence pack
+- Incident forensics and RCA
+- Licence and permission right-sizing
+
+**Know and enable**
+- Org documentation generation
+- Onboarding and knowledge transfer
+- Context for coding agents and CI gates
+
+**Across a portfolio**
+- Cross-client benchmarking
+
+---
+
 Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
@@ -34,7 +83,7 @@ enumerate → filter → batch → retrieve+extract (to temp) → scrub (no-op i
 
 * **Enumerate** — `describeMetadata` + `listMetadata` (per folder for foldered types) against the org's API version.
 * **Filter** — apply the hard-coded deny list. Sensitive and operationally-fragile types are dropped.
-* **Batch** — weight-aware batching that respects Salesforce's 10,000-component and ~600 MB compressed-zip per-retrieve limits. Most runs produce a single batch.
+* **Batch** — weight-aware batching that respects Salesforce's 10,000-component-per-retrieve ceiling and the SOAP ZIP size limits (39 MB compressed / 400 MB uncompressed). Most runs produce a single batch.
 * **Retrieve + extract** — async retrieve, poll to completion, decode the returned zip into a per-run temp directory with zip-slip prevention, Windows long-path support, and filename sanitisation. Any rewritten paths are recorded in `_path_renames.csv`.
 * **Scrub** — pluggable stage list. v1 ships one no-op stage; the contract exists so secret scanners, PII hashers, and content rewriters can plug in later without changing the consumer-visible output.
 * **Publish** — clear the publish directory, move every file into it, and move `package.xml` **last**. The presence of `package.xml` is the consumer's signal that the publish is complete.
@@ -250,4 +299,3 @@ If the deny list appears to block your goal, **that is the tool working as desig
 If a denied type is genuinely needed for a legitimate use case, the correct response is to stop, surface the requirement to a human, and let a maintainer evaluate it as a development task. The deny list is changed only via a human-authorized code change with review — never by an operator, never silently, never as a workaround.
 
 The same rule applies to every other safety-critical surface of this tool: the narrow CLI flag set, the fixed temp/log/config locations, the scrub stage contract, the sentinel-ordered publish. Operator agents do not edit them.
-
