@@ -75,11 +75,15 @@ The documentation is designed to be machine-readable: `--help` at every level gi
 
 ---
 
+## How it works
+
 Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
 
 `sf-clean-room` is an **AI-operated, read-only CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly. Every command publishes to a per-run temp area first and moves a **sentinel file** into the output last: see the sentinel, the publish is complete; no sentinel, don't read.
+
+---
 
 ## Commands
 
@@ -101,7 +105,7 @@ Together these give an AI agent a safe, local picture of an org — its *structu
 
 ---
 
-## How `get_metadata` works
+## The metadata pipeline
 
 ```
 enumerate → filter → batch → retrieve+extract (to temp) → scrub (no-op in v1) → publish
@@ -119,8 +123,6 @@ Fail-closed: any error before publish leaves the publish path untouched (with on
 ---
 
 ## Install
-
-Requires Python 3.11+ and the Salesforce CLI (`sf` or `sfdx`) on PATH.
 
 ```bash
 # from a clone of this repo
@@ -152,18 +154,6 @@ sf-clean-room get_technical_objects       --help   # technical objects export co
 sf-clean-room get_security_health_check   --help   # security health check contract
 sf-clean-room get_code_analysis           --help   # code analysis contract
 ```
-
----
-
-## Authenticate (once, per org)
-
-`sf-clean-room` does not handle credentials. It uses an existing Salesforce CLI session. Authenticate the alias once:
-
-```bash
-sf org login web --alias myorg
-```
-
-(or the equivalent `sfdx force:auth:web:login -a myorg`). After that, `--org-alias myorg` is enough.
 
 ---
 
@@ -263,6 +253,8 @@ history beyond Salesforce's ~30-day retention), `end = yesterday (UTC)`, and a r
 that already covers through yesterday is a no-op. The sentinel
 `_field-handling-applied.csv` is moved into the subfolder last. See
 `docs/design/04-design-v3.md`.
+
+---
 
 ## Testing
 
