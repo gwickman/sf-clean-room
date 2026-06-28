@@ -49,6 +49,32 @@ Use sf-clean-room wherever you need a safe, structured read of a Salesforce org:
 
 ---
 
+## Quick setup
+
+**Prerequisites**
+
+- **Python 3.11+**
+- **Salesforce CLI** (`sf`) on your PATH — [install guide](https://developer.salesforce.com/tools/salesforcecli)
+- **Pre-authenticated org aliases** — the tool uses the existing Salesforce CLI session; it does not handle authentication itself. Each org you want to analyse must be authenticated before you run any command:
+  ```bash
+  sf org login web --alias myorg
+  ```
+  You can have as many aliases as you need (one per org, sandbox, or environment).
+- **`get_code_analysis` only:** the `sf code-analyzer` plugin (`sf plugins install @salesforce/plugin-code-analyzer`) and **Java 11+** on your PATH (required by the PMD and CPD engines; without it, Apex rule coverage is unavailable).
+
+**The quickest way to get productive**
+
+Explain your use case to a coding agent (such as Claude Code), point it at this repository, and ask it to read the documentation. The agent will work out which commands apply to your situation, verify that the prerequisites above are satisfied, and walk you through anything that still needs doing.
+
+```
+I want to [describe your use case — e.g. "run a security and code-quality review of a client org"].
+Please read the sf-clean-room repository at [path or URL] and advise me on how to proceed.
+```
+
+The documentation is designed to be machine-readable: `--help` at every level gives the full command contract, and the design docs in `docs/` cover the detail. Once the agent has read them, it can drive the entire workflow — from choosing the right commands to reviewing the output.
+
+---
+
 Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
