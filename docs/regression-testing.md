@@ -174,7 +174,7 @@ authenticated, **say so explicitly and skip** — never auto-authenticate one
 limited-permission code paths with mocks regardless.
 
 > **STATUS (cannot yet run): no limited-permission live fixture.** As of the
-> v2.1 build, no limited-permission alias is authenticated in the project-profile
+> v2.1 build, no limited-permission alias is authenticated in the test CLI
 > profile, so this live acceptance has **not** been run against a real limited
 > identity — it is covered offline by mocks only. To enable it, authenticate a
 > dedicated limited-profile user (ideally on `example-dev-edition`) and add a
@@ -201,7 +201,7 @@ Verify:
   username; hashed columns are 64-hex; no header column whose audit action is
   `DROP`; URL columns carry no `?` query string.
 
-> **STATUS (2026-06-24, example-prodcopy):** Event Monitoring enabled; 1025
+> **STATUS (2026-06-24):** Event Monitoring enabled; 1025
 > EventLogFile records across a 30-day window. Dry-run ✓; extraction ✓; sentinel
 > (`_field-handling-applied.csv`) present ✓; idempotency re-run ✓ (exit 0). No-raw-dump
 > checks: `CLIENT_IP` cells end in `.0` ✓; `SESSION_KEY`/`LOGIN_KEY` RAW ✓;
@@ -262,7 +262,7 @@ Some objects require paid add-ons or specific platform settings not present on a
 
 Record any additional unexplained skips in this file (principle C7: surface, don't hide).
 
-> **STATUS (2026-06-24, example-prodcopy):** 36/40 objects extracted; exit 0 ✓.
+> **STATUS (2026-06-24):** 36/40 objects extracted; exit 0 ✓.
 > 4 LightningUsage* objects skipped (404 NOT_FOUND — Lightning Usage telemetry
 > add-on not enabled); recorded in `_extract-summary.json` `skipped` list.
 > No-raw-dump: 60 IP-like values in `AuthSession.csv` all derived (last octet

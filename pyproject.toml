@@ -5,11 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sf-clean-room"
 version = "0.1.0"
-description = "Export pre-scrubbed Salesforce metadata to a folder safe for automated consumers."
+description = "AI-operated CLI that exports anonymised Salesforce metadata, records, event logs, technical objects, security health check, and code analysis to local folders safe for downstream automated consumers."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
 authors = [{ name = "sf-clean-room maintainers" }]
+keywords = [
+    "salesforce",
+    "salesforce-cli",
+    "metadata",
+    "privacy",
+    "data-anonymization",
+    "event-log",
+    "security",
+    "cli",
+    "ai-tools",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -19,9 +30,15 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
+
 dependencies = [
     "requests>=2.28",
 ]
+
+[project.urls]
+"Homepage" = "https://github.com/grantwickman/sf-clean-room"
+"Bug Tracker" = "https://github.com/grantwickman/sf-clean-room/issues"
+"Source" = "https://github.com/grantwickman/sf-clean-room"
 
 [project.optional-dependencies]
 dev = [

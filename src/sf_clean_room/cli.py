@@ -4,10 +4,14 @@ Invocation shape::
 
     sf-clean-room <command> [<command-flags>...]
 
-v1 ships one command:
+Six commands ship:
 
-* ``get_metadata`` - export Salesforce metadata to a folder safe for downstream
-  automated consumers.
+* ``get_metadata`` - export org metadata to a folder safe for downstream consumers.
+* ``get_records`` - export org record data (anonymised in flight).
+* ``get_event_logs`` - export EventLogFile data (anonymised in flight, incremental).
+* ``get_technical_objects`` - export 40 technical/Tooling objects (anonymised in flight).
+* ``get_security_health_check`` - export the org Security Health Check score and risk table.
+* ``get_code_analysis`` - run Salesforce Code Analyzer over a get_metadata output folder.
 
 Top-level flags are limited to ``--help`` and ``--version``. Per-command flags
 are documented by ``sf-clean-room <command> --help``.
@@ -43,10 +47,11 @@ from sf_clean_room.session import get_session
 
 def _top_description() -> str:
     return (
-        "Export Salesforce metadata (and, in future versions, records) to a "
-        "folder that is safe for downstream automated consumers - other AI "
-        "agents, code analysers, CI. Sensitive metadata categories are "
-        "filtered out at enumeration time and never transit the network."
+        "Export Salesforce metadata, record data, event logs, technical "
+        "objects, security health check, and code analysis to local folders "
+        "safe for downstream automated consumers — other AI agents, code "
+        "analysers, CI. Sensitive data is excluded, anonymised, or derived "
+        "in flight; raw PII and sensitive metadata never touch a published file."
     )
 
 

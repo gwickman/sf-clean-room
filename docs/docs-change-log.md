@@ -22,7 +22,7 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ## 2026-06-26 — Test org switched to `sf_clean_room` (dedicated DE)
 
-**Change.** `tests/live_org.toml` changed from `test_org = "example-prodcopy"` to `test_org = "sf_clean_room"`. The `sf_clean_room` alias was copied from the default SF CLI profile (`~/.sfdx/`) to the project-profile profile (`~/.sfdx/`). `docs/regression-testing.md` updated throughout to reference `sf_clean_room` instead of `example-dev-edition` / `example-prodcopy`.
+**Change.** `tests/live_org.toml` changed to `test_org = "sf_clean_room"` (the dedicated Developer Edition org for this tool). `docs/regression-testing.md` updated throughout to reference `sf_clean_room` as the canonical test org alias.
 
 **Why.** `sf_clean_room` is the dedicated Developer Edition org for testing this tool — a clean, safe target that carries no client data. Using a named test org for regression is cleaner than pointing at a client-data copy.
 
@@ -188,7 +188,7 @@ and a live enumerate test, and updates `regression-testing.md` §4.
 against `example-dev-edition` (get_records ×2, get_metadata enumerate ×1). Chatbot-driven
 real `get_metadata` run verified the published `package.xml` + header-only/partial-only
 `_skipped-types.csv`. **Known gap:** no limited-permission live fixture is authenticated
-in the project-profile profile, so the limited-permission live path is covered by mocks
+in the test CLI profile, so the limited-permission live path is covered by mocks
 offline but not yet exercised against a real limited identity (would need such an alias
 authenticated; the tool never auto-authenticates).
 
@@ -269,7 +269,7 @@ This is the central design decision for the record-download tool, and the reason
 - Production aliases required **explicit per-task authorisation**.
 - "Hard lines" that no override could cross: `textarea ≥ 30000` → DROP; special-category → DROP; DOB → DROP.
 
-**Decision (Grant, 2026-06-03).** Assume the operator is a **flagship, privacy-aware model** already making a genuine effort to follow the governing privacy rules, and design to leverage that intelligence rather than treat it as an adversary. The earlier model is too fragile — every abort is a forced human decision, which is an anti-pattern for an autonomy-first tool. Specifically:
+**Decision (2026-06-03).** Assume the operator is a **flagship, privacy-aware model** already making a genuine effort to follow the governing privacy rules, and design to leverage that intelligence rather than treat it as an adversary. The earlier model is too fragile — every abort is a forced human decision, which is an anti-pattern for an autonomy-first tool. Specifically:
 
 - **Forcing a human decision is an anti-pattern.** Replaced the aborts with: the tool recommends the conservative action (DROP) in its annotated-schema response and proceeds. `type=email`-unclassified → recommend DROP/HASH_EMAIL, no abort. Formula-leak → flag with recommended action, no abort.
 - **The classifier became a recommendation engine, not a gate.** It runs a schema scan and returns an annotated schema with recommended classifications; the operator can override (it may already know it needs specific data, or the user authorised it).
@@ -304,7 +304,7 @@ This is the central design decision for the record-download tool, and the reason
 
 **Change.** Added requirement §4.7 and a supporting clause to principle **B3**: a reviewed classification plan is a persistable run specification that executes **non-interactively, with no agent in the loop**, so a scheduler (Task Scheduler/cron) can refresh a dataset on a cadence.
 
-**Why (Grant, 2026-06-03).** After an initial interactive probe/scan/review pass, the common case is re-downloading a specific dataset regularly. The agent's intelligence is needed to *author* the safety decisions, not to *execute* them. Key safety property attached to the decision: **schema drift defaults safe** — a field present in a later scan but absent from the plan falls back to the conservative classifier default and is logged, so a new sensitive field can never silently enter the output just because the plan predates it. Drift is reported, not fatal.
+**Why (2026-06-03).** After an initial interactive probe/scan/review pass, the common case is re-downloading a specific dataset regularly. The agent's intelligence is needed to *author* the safety decisions, not to *execute* them. Key safety property attached to the decision: **schema drift defaults safe** — a field present in a later scan but absent from the plan falls back to the conservative classifier default and is logged, so a new sensitive field can never silently enter the output just because the plan predates it. Drift is reported, not fatal.
 
 ---
 
@@ -312,7 +312,7 @@ This is the central design decision for the record-download tool, and the reason
 
 **Change.** Removed all references to specific organisations, projects, individuals, and cross-repository paths from the tracked, product-facing files (`pyproject.toml` author field, the ideation docs, `CLAUDE.md` content). The governing policy is referred to generically as "an organisational AI acceptable-use policy"; prior real-world extraction work is referred to as "the earlier pipeline" / "prior extracts" without naming clients.
 
-**Why (Grant).** The repo is intended to be a generic, shareable tool. Decision: **Salesforce is intrinsic** to the tool and stays named throughout; everything else (companies, client projects, people, private repo paths) is abstracted. SOAP/Salesforce protocol namespaces and the `<host>` placeholder in source are protocol constants, not leakage, and were left as-is. The `CLAUDE.md` filename was kept (it is a required harness convention) but its content was made vendor-neutral.
+**Why.** The repo is intended to be a generic, shareable tool. Decision: **Salesforce is intrinsic** to the tool and stays named throughout; everything else (companies, client projects, people, private repo paths) is abstracted. SOAP/Salesforce protocol namespaces and the `<host>` placeholder in source are protocol constants, not leakage, and were left as-is. The `CLAUDE.md` filename was kept (it is a required harness convention) but its content was made vendor-neutral.
 
 ---
 

@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a bug in sf-clean-room
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before submitting:** do not paste Salesforce org output, credentials, session tokens, or any extracted data. The issue tracker is public.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. Include the command you ran and the exact error message or unexpected behaviour.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: What should have happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the command (with org alias replaced by a placeholder). Do not include real org data.
+      placeholder: |
+        sf-clean-room get_metadata --org-alias <alias> --path <path>
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: sf-clean-room version
+      description: Output of `sf-clean-room --version`
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      description: Output of `python --version`
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true

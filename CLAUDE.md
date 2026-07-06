@@ -49,7 +49,7 @@ These are load-bearing. If a change touches any of them, it is not a routine cha
 5. **CLI surface is narrow.** The dispatcher exposes `--help` and `--version` at the top level. Per-command flag surfaces (complete lists — no other flags exist):
    - `get_metadata`: `--org-alias`, `--path`, `--dry-run`
    - `get_records`: `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run`
-   - `get_event_logs`: `--org-alias`, `--path`, `--only`, `--where`, `--plan`, `--dry-run`
+   - `get_event_logs`: `--org-alias`, `--path`, `--only`, `--plan`, `--dry-run`
    - `get_technical_objects`: `--org-alias`, `--path`, `--plan`, `--only`, `--limit`, `--dry-run`
    - `get_security_health_check`: `--org-alias`, `--path`, `--dry-run`
    - `get_code_analysis`: `--org-alias`, `--metadata-path`, `--path`, `--dry-run`

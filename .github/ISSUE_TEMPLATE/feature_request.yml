@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest a new command, extraction target, or improvement
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        New capabilities in sf-clean-room are new subcommands, not new flags on existing ones. See `docs/00-design-principles.md` for the design principles.
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: What are you trying to accomplish? What Salesforce data or analysis does this enable?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the new command, output format, or behaviour change you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Privacy and safety considerations
+      description: Does this involve PII, credentials, or sensitive metadata? How should it be handled in the anonymisation pipeline?

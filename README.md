@@ -79,6 +79,8 @@ The documentation is designed to be machine-readable: `--help` at every level gi
 
 Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
+> **Scope note.** These outputs are designed for controlled, private downstream consumers. They are not automatically safe to publish publicly. Metadata export excludes sensitive metadata types by design, but does not currently run a content secret scanner over allowed metadata or code files — treat the output accordingly.
+
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
 
 `sf-clean-room` is an **AI-operated, read-only CLI**. It is designed to be discovered and used by an agent that may have no prior context — `--help` prints everything the agent needs to use it correctly. Every command publishes to a per-run temp area first and moves a **sentinel file** into the output last: see the sentinel, the publish is complete; no sentinel, don't read.

@@ -1,0 +1,23 @@
+name: Documentation issue
+description: Report a gap, error, or ambiguity in the documentation
+labels: [documentation]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Which document?
+      description: File path or `--help` output (e.g. `docs/design/01-design-v1.md`, `get_metadata --help`)
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is wrong or missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction or addition (optional)
