@@ -64,7 +64,9 @@ Use sf-clean-room wherever you need a safe, structured read of a Salesforce org:
 
 **The quickest way to get productive**
 
-Explain your use case to a coding agent (such as Claude Code), point it at this repository, and ask it to read the documentation. The agent will work out which commands apply to your situation, verify that the prerequisites above are satisfied, and walk you through anything that still needs doing.
+This assumes that you're using a corporate coding agent from a terminal or dedicated app like Claude Desktop or Codex, not a chatbot or as a plug-in. 
+
+Explain your use case to the coding agent (such as Claude Code), point it at this repository, and ask it to read the documentation. The agent will work out which commands apply to your situation, verify that the prerequisites above are satisfied, and walk you through anything that still needs doing.
 
 ```
 I want to [describe your use case — e.g. "run a security and code-quality review of a client org"].
