@@ -79,7 +79,7 @@ The documentation is designed to be machine-readable: `--help` at every level gi
 
 ## How it works
 
-Extract Salesforce **metadata, record data, event logs, and technical objects** into local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
+Extract Salesforce **metadata, record data, event logs, technical objects, and security posture** — and run **code analysis** — producing local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
 
 > **Scope note.** These outputs are designed for controlled, private downstream consumers. They are not automatically safe to publish publicly. Metadata export excludes sensitive metadata types by design, but does not currently run a content secret scanner over allowed metadata or code files — treat the output accordingly.
 
@@ -133,10 +133,10 @@ Fail-closed: any error before publish leaves the publish path untouched (with on
 pip install .
 ```
 
-For development:
+For development (the setuptools backend requires `editable_mode=compat` for a true editable install — without it the install silently falls back to a file copy):
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev]" --config-settings editable_mode=compat
 pytest
 ```
 
@@ -257,6 +257,89 @@ history beyond Salesforce's ~30-day retention), `end = yesterday (UTC)`, and a r
 that already covers through yesterday is a no-op. The sentinel
 `_field-handling-applied.csv` is moved into the subfolder last. See
 `docs/design/04-design-v3.md`.
+
+---
+
+## Technical objects (`get_technical_objects`)
+
+`get_technical_objects` exports **40 catalogued Tooling and system objects** that describe the org's internal machinery — anonymised in flight. The objects are fixed and cover:
+
+- **Apex health** — `ApexClass`, `ApexTrigger`, `ApexTestResult`, test coverage, compilation errors
+- **Automation and jobs** — `CronJobDetail`, `CronTrigger`, `AsyncApexJob`, `FlowVersionView`
+- **Privilege topology** — `Profile`, `PermissionSet`, `PermissionSetAssignment`, `ObjectPermissions`, `FieldPermissions`, `SetupEntityAccess`
+- **Login, session and MFA** — `LoginHistory`, `AuthSession`, `UserLogin`, `TwoFactorInfo`
+- **Setup audit trail** — `SetupAuditTrail` (up to 180 days of configuration changes)
+- **Usage telemetry and limits** — `LightningUsageByAppTypeMetrics`, org limits via REST `/limits`
+
+Anonymisation follows the same two-layer classifier as `get_records`: IPs → network prefix, geo coarsened to country/subdivision, emails and usernames hashed, free text dropped; permission bits, Salesforce IDs, and metrics are kept whole.
+
+```bash
+# Plan (dry-run): describe + classify all 40 objects, write a plan file. No record values are read.
+sf-clean-room get_technical_objects --org-alias myorg --path ./out --plan plan.toml --dry-run
+
+# Real run: extract, anonymise in flight, publish snapshot (clear-and-republish on each run).
+sf-clean-room get_technical_objects --org-alias myorg --path ./out
+
+# Subset: extract only specific objects.
+sf-clean-room get_technical_objects --org-alias myorg --path ./out --only ApexClass ApexTrigger SetupAuditTrail
+
+# Limit rows per object (useful when querying large orgs in a dev context).
+sf-clean-room get_technical_objects --org-alias myorg --path ./out --limit 1000
+```
+
+`--plan` works the same way as for `get_records`: edit the generated TOML to override field classifications, then pass it on the real run. Schema drift (fields added after the plan was written) defaults to the conservative classifier action and is logged, never silently included.
+
+The sentinel is `_field-handling-applied.csv`, moved into `--path` last. This command uses a **snapshot publish model** — the output directory is cleared and republished on each run; there are no dated subfolders. See `docs/design/05-design-v4.md` for the full contract.
+
+---
+
+## Security health check (`get_security_health_check`)
+
+`get_security_health_check` fetches the org's **Security Health Check** score and the full per-setting risk table via the Tooling API and publishes them as a single JSON file.
+
+The output contains:
+- The overall score (0–100)
+- One row per evaluated setting, with: `RiskType` (HIGH_RISK / MEDIUM_RISK / LOW_RISK / INFORMATIONAL / MEETS_STANDARD), `Setting`, `SettingGroup`, the org's current value, and the Salesforce standard value
+
+There is no classifier and no anonymisation — the data is entirely org-configuration metadata (no user records, no PII).
+
+```bash
+# Dry-run: fetch and report score + risk table. Nothing is written.
+sf-clean-room get_security_health_check --org-alias myorg --path ./out --dry-run
+
+# Real run: fetch and publish.
+sf-clean-room get_security_health_check --org-alias myorg --path ./out
+```
+
+The sentinel is `securityhealthcheck_<alias>.json`, which is both the sentinel and the only output file. This command uses a **snapshot publish model** — each run overwrites the previous output. See `docs/reference/salesforce-security-health-check.md` for the output schema.
+
+---
+
+## Code analysis (`get_code_analysis`)
+
+`get_code_analysis` runs **Salesforce Code Analyzer** (`sf code-analyzer`) over a local `get_metadata` output folder and publishes the HTML, CSV, and JSON reports. It requires **no Salesforce session** — it reads files on disk.
+
+Prerequisites (in addition to the standard install):
+- The `sf code-analyzer` plugin: `sf plugins install @salesforce/plugin-code-analyzer`
+- **Java 11+** on your PATH — required by the PMD, CPD, and sfge engines. Without Java, those engines are skipped and only eslint, retire-js, and regex engines run (Apex-specific rules are unavailable). The command warns if Java is not found and proceeds with the available engines rather than aborting.
+
+```bash
+# Dry-run: validate prerequisites (plugin present, package.xml exists). Nothing is executed.
+sf-clean-room get_code_analysis --org-alias myorg --metadata-path ./metadata-out --path ./analysis-out --dry-run
+
+# Real run: invoke sf code-analyzer and publish results.
+sf-clean-room get_code_analysis --org-alias myorg --metadata-path ./metadata-out --path ./analysis-out
+```
+
+`--metadata-path` must point to a completed `get_metadata` output — `package.xml` must be present (that is the sentinel confirming the metadata publish is complete). `--path` is the destination for the analysis reports.
+
+Output files published:
+- `code_analyser_results_<alias>.html` — interactive findings report
+- `code_analyser_results_<alias>.csv` — machine-readable findings
+- `code_analyser_results_<alias>.json` — structured findings
+- `_summary.json` — the sentinel, moved last; contains rule and violation counts
+
+The sentinel is `_summary.json`. No sentinel ⇒ do not consume. See `docs/reference/salesforce-code-analyser.md` for the output schema.
 
 ---
 
