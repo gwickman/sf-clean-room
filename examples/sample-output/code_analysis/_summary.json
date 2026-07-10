@@ -1,0 +1,10 @@
+{
+  "alias": "acme_dev",
+  "rules": 12,
+  "violations": 3,
+  "outputs": [
+    "code_analyser_results_acme_dev.html",
+    "code_analyser_results_acme_dev.csv",
+    "code_analyser_results_acme_dev.json"
+  ]
+}

@@ -1,10 +1,8 @@
 # sf-clean-room
 
-sf-clean-room is a Python application that lets a flagship AI agent help analyse a Salesforce org without granting the agent direct access to the org or to confidential information.
+sf-clean-room is an AI-operated, read-only Salesforce org assessment CLI. It exports Salesforce metadata, selected records, EventLogFile data, technical objects, Security Health Check results, and code-analysis reports into local folders for controlled downstream automated consumers: AI agents, code analysers, search indexers, CI jobs, and governance workflows.
 
-For an architect or consultant with a corporate AI, it is tempting to let the AI do much of the heavy lifting when analysing a client org. But pointing an AI agent directly at a client org will, in most cases, breach both your company's AI usage policy and your client agreements. Few governance policies permit an AI to connect to a production org, and most treat the consumption of confidential data or PII by an AI as a data breach.
-
-sf-clean-room is designed to keep the AI useful while staying inside those policies. For known schemas (event logs, setup audit trails, login history and the like) it hashes useful PII such as email addresses, so records still join and match, and drops the higher-risk columns that carry little practical value. For dynamic schemas, such as data drawn from custom objects, it hashes or drops the obvious violations and provides utilities and procedures that reduce the chance of accidental data leakage.
+The tool is for architects, consultants, security reviewers, and managed-service teams who want AI help with a Salesforce org without giving the AI a Salesforce session or raw confidential data. Sensitive metadata is excluded before retrieve; record and event-log PII is dropped, hashed, or derived in flight; outputs publish only after a sentinel file confirms the run completed.
 
 ## Use and responsibility
 
@@ -16,7 +14,9 @@ sf-clean-room is licensed under the Apache License 2.0 and is distributed on an 
 
 ## When to use it
 
-Use sf-clean-room wherever you need a safe, structured read of a Salesforce org: one-off assessments (health, security, technical debt), pre-sales scoping and estimation, ongoing governance and managed-services monitoring, audit and incident work, documentation, and cross-client benchmarking.
+Use sf-clean-room wherever you need a controlled, structured read of a Salesforce org: one-off assessments (health, security, technical debt), pre-sales scoping and estimation, ongoing governance and managed-services monitoring, audit and incident work, documentation, and cross-client benchmarking.
+
+Common use cases include Salesforce AI org assessment, Salesforce metadata anonymization, EventLogFile anonymization, security-health evidence packs, technical-debt discovery, pre-sales org discovery, managed-services governance snapshots, and controlled local context for coding agents.
 
 **Assess and advise**
 - Org health check
@@ -47,6 +47,37 @@ Use sf-clean-room wherever you need a safe, structured read of a Salesforce org:
 **Across a portfolio**
 - Cross-client benchmarking
 
+Related public docs:
+- [Use cases](docs/use-cases/salesforce-org-assessment.md)
+- [Comparison with adjacent Salesforce tools](docs/comparison.md)
+- [Agent prompt examples](docs/agent-prompts.md)
+- [Synthetic sample outputs](examples/sample-output/README.md)
+
+---
+
+## Install
+
+```bash
+git clone https://github.com/gwickman/sf-clean-room.git
+cd sf-clean-room
+pip install .
+```
+
+For development, install in editable mode with the dev dependencies. The setuptools backend requires `editable_mode=compat` for a true editable install.
+
+```bash
+pip install -e ".[dev]" --config-settings editable_mode=compat
+pytest
+```
+
+The package installs a console script with a subcommand dispatcher:
+
+```bash
+sf-clean-room --version
+sf-clean-room --help                       # top-level: lists available commands
+sf-clean-room get_metadata --help          # per-command: full contract
+```
+
 ---
 
 ## Quick setup
@@ -73,15 +104,15 @@ I want to [describe your use case — e.g. "run a security and code-quality revi
 Please read the sf-clean-room repository at [path or URL] and advise me on how to proceed.
 ```
 
-The documentation is designed to be machine-readable: `--help` at every level gives the full command contract, and the design docs in `docs/` cover the detail. Once the agent has read them, it can drive the entire workflow — from choosing the right commands to reviewing the output.
+The documentation is designed to be machine-readable: `--help` at every level gives the full command contract, and the design docs in `docs/` cover the detail. Once the agent has read them, it can drive the entire workflow, from choosing the right commands to reviewing the output. See [agent prompt examples](docs/agent-prompts.md) for copy-paste prompts.
 
 ---
 
 ## How it works
 
-Extract Salesforce **metadata, record data, event logs, technical objects, and security posture** — and run **code analysis** — producing local folders that are **safe to expose to downstream automated consumers** — other AI agents, code analysers, search indexers, CI pipelines.
+Extract Salesforce **metadata, record data, event logs, technical objects, and security posture** and run **code analysis**, producing local folders for controlled downstream automated consumers: other AI agents, code analysers, search indexers, CI pipelines.
 
-> **Scope note.** These outputs are designed for controlled, private downstream consumers. They are not automatically safe to publish publicly. Metadata export excludes sensitive metadata types by design, but does not currently run a content secret scanner over allowed metadata or code files — treat the output accordingly.
+> **Consumer note.** These outputs are designed for controlled, private downstream consumers. They are not automatically safe to publish publicly. Metadata export excludes sensitive metadata types by design, but does not currently run a content secret scanner over allowed metadata or code files — treat the output accordingly.
 
 The safety guarantee is structural, not behavioural: anything sensitive is excluded, anonymised, or derived **before** it reaches a published file. Sensitive metadata types never leave Salesforce; record PII is classified and dropped/hashed in flight; event-log IPs, usernames, and free text are derived/hashed/dropped while the raw download exists only in memory. Consumers read a directory — they never hold a Salesforce session and never see a raw extract.
 
@@ -105,7 +136,7 @@ sf-clean-room --help                       # tool overview + command list
 sf-clean-room <command> --help             # full per-command contract
 ```
 
-Together these give an AI agent a safe, local picture of an org — its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), its *technical internals* (`get_technical_objects`), its *security posture* (`get_security_health_check`), and its *code quality and vulnerabilities* (`get_code_analysis`) — without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All commands are read-only, fail closed, and audit every run. All support `--dry-run`. (`get_code_analysis` requires no Salesforce session — it runs locally over a prior `get_metadata` output.)
+Together these give an AI agent a controlled, local picture of an org: its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), its *technical internals* (`get_technical_objects`), its *security posture* (`get_security_health_check`), and its *code quality and vulnerabilities* (`get_code_analysis`), without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All commands are read-only, fail closed, and audit every run. All support `--dry-run`. (`get_code_analysis` requires no Salesforce session; it runs locally over a prior `get_metadata` output.)
 
 ---
 
@@ -126,27 +157,7 @@ Fail-closed: any error before publish leaves the publish path untouched (with on
 
 ---
 
-## Install
-
-```bash
-# from a clone of this repo
-pip install .
-```
-
-For development (the setuptools backend requires `editable_mode=compat` for a true editable install — without it the install silently falls back to a file copy):
-
-```bash
-pip install -e ".[dev]" --config-settings editable_mode=compat
-pytest
-```
-
-The package installs a console script with a subcommand dispatcher:
-
-```bash
-sf-clean-room --version
-sf-clean-room --help                       # top-level: lists available commands
-sf-clean-room get_metadata --help          # per-command: full contract
-```
+## Command help
 
 All commands share the audit log, the temp-then-publish discipline, and the sentinel-last publish rule. Per-command help:
 

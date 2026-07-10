@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sf-clean-room"
 version = "0.1.0"
-description = "AI-operated CLI that exports anonymised Salesforce metadata, records, event logs, technical objects, security health check, and code analysis to local folders safe for downstream automated consumers."
+description = "AI-operated, read-only Salesforce org assessment CLI that exports anonymised metadata, records, event logs, technical objects, security health check, and code analysis to local folders with PII excluded, hashed, or derived before downstream tools see it."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
@@ -13,13 +13,22 @@ authors = [{ name = "sf-clean-room maintainers" }]
 keywords = [
     "salesforce",
     "salesforce-cli",
+    "salesforce-ai",
+    "salesforce-security",
+    "org-assessment",
     "metadata",
     "privacy",
     "data-anonymization",
+    "anonymization",
+    "data-masking",
     "event-log",
+    "event-monitoring",
     "security",
+    "code-analysis",
+    "pii",
     "cli",
     "ai-tools",
+    "agent-tools",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -36,9 +45,10 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/grantwickman/sf-clean-room"
-"Bug Tracker" = "https://github.com/grantwickman/sf-clean-room/issues"
-"Source" = "https://github.com/grantwickman/sf-clean-room"
+"Homepage" = "https://github.com/gwickman/sf-clean-room"
+"Bug Tracker" = "https://github.com/gwickman/sf-clean-room/issues"
+"Source" = "https://github.com/gwickman/sf-clean-room"
+"Documentation" = "https://github.com/gwickman/sf-clean-room#readme"
 
 [project.optional-dependencies]
 dev = [

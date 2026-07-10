@@ -6,6 +6,16 @@ Newest entries first. Each entry records what changed, the before/after where us
 
 ---
 
+## 2026-07-10 — Public discovery docs and package metadata
+
+**Change.** README opening, install instructions, and public-doc links updated. `pyproject.toml` description, keywords, and project URLs updated. Added `docs/comparison.md`, `docs/use-cases/salesforce-org-assessment.md`, `docs/agent-prompts.md`, and `examples/sample-output/`.
+
+**Runtime.** No CLI flags, extraction behavior, classifier behavior, deny-list behavior, sentinel names, or publish ordering changed.
+
+**Validation.** `git diff --check`, `python -B -m pytest -m "not live" -q -p no:cacheprovider`, `python -m sf_clean_room --help`, `python -m sf_clean_room get_metadata --help`, package build, and `twine check dist/*` passed.
+
+---
+
 ## 2026-06-26 — Windows `[WinError 2]` fix: `run_cli_text` now resolves bare `sf`/`sfdx`
 
 **Change.** `sfcli.py:run_cli_text` now calls `which_cli()` to resolve bare `"sf"` or `"sfdx"` to the full CLI path before passing it to `subprocess.run`. The fix is central — all callers benefit without each one needing to call `which_cli()` first.

@@ -1,0 +1,13 @@
+{
+  "alias": "acme_dev",
+  "score": 92,
+  "risks": [
+    {
+      "RiskType": "LOW_RISK",
+      "SettingGroup": "Session Settings",
+      "Setting": "Sample session setting",
+      "OrgValue": "Sample current value",
+      "StandardValue": "Sample recommended value"
+    }
+  ]
+}

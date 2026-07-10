@@ -1,0 +1,5 @@
+event_type,column,action,reason
+Login,USER_ID,RAW,salesforce_id_join_key
+Login,USERNAME,HASH,username
+Login,CLIENT_IP,DERIVE,network_prefix
+Login,LOGIN_STATUS,PASS,enumeration

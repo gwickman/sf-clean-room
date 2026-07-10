@@ -1,0 +1,10 @@
+{
+  "violations": [
+    {
+      "rule": "AvoidDebugStatements",
+      "severity": 3,
+      "engine": "pmd",
+      "file": "classes/SampleAccountController.cls"
+    }
+  ]
+}

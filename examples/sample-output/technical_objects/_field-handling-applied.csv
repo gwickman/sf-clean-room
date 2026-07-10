@@ -1,0 +1,5 @@
+object,field,action,reason
+LoginHistory,Id,RAW,salesforce_id_join_key
+LoginHistory,UserId,RAW,salesforce_id_join_key
+LoginHistory,SourceIp,DERIVE,network_prefix
+LoginHistory,Status,PASS,enumeration

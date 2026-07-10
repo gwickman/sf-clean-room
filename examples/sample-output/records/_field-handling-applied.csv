@@ -1,0 +1,7 @@
+object,field,action,reason
+Account,Id,RAW,salesforce_id_join_key
+Account,Name,PASS,synthetic_sample_value
+Account,BillingCountry,PASS,coarse_location
+Account,AnnualRevenue,PASS,non_personal_metric
+Account,PrimaryContactEmail__c,HASH_EMAIL,email_address
+Account,InternalNotes__c,DROP,free_text
