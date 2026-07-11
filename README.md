@@ -1,5 +1,7 @@
 # sf-clean-room
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/gwickman/sf-clean-room)
+
 sf-clean-room is an AI-operated, read-only Salesforce org assessment CLI. It exports Salesforce metadata, selected records, EventLogFile data, technical objects, Security Health Check results, and code-analysis reports into local folders for controlled downstream automated consumers: AI agents, code analysers, search indexers, CI jobs, and governance workflows.
 
 The tool is for architects, consultants, security reviewers, and managed-service teams who want AI help with a Salesforce org without giving the AI a Salesforce session or raw confidential data. Sensitive metadata is excluded before retrieve; record and event-log PII is dropped, hashed, or derived in flight; outputs publish only after a sentinel file confirms the run completed.
@@ -137,6 +139,28 @@ sf-clean-room <command> --help             # full per-command contract
 ```
 
 Together these give an AI agent a controlled, local picture of an org: its *structure* (`get_metadata`), its *data shape and distributions* (`get_records`), its *operational/security activity* (`get_event_logs`), its *technical internals* (`get_technical_objects`), its *security posture* (`get_security_health_check`), and its *code quality and vulnerabilities* (`get_code_analysis`), without the agent ever touching Salesforce directly or seeing raw PII, credentials, or secrets. All commands are read-only, fail closed, and audit every run. All support `--dry-run`. (`get_code_analysis` requires no Salesforce session; it runs locally over a prior `get_metadata` output.)
+
+---
+
+## Estimated timings
+
+Rough wall-clock per command, single org, one run.
+
+| Command | Small | Medium | Large |
+|---|---|---|---|
+| `get_metadata` | ~3.5 min | ~25 min | ~50 min |
+| `get_records` | ~1 min | ~12 min | ~60 min |
+| `get_event_logs` | ~10 sec | ~8 min | ~30 min |
+| `get_technical_objects` | ~1 min | ~8 min | ~35 min |
+| `get_security_health_check` | ~7 sec | ~15 sec | ~30 sec |
+| `get_code_analysis` | ~20 sec | ~3 min | ~4 min |
+| **All six, end-to-end** | **~6 min** | **~55 min** | **~3 hr** |
+
+Org profiles:
+
+- **Small** — single-team / Developer-Edition org. Minimal custom schema, a few standard objects, little historical or log data.
+- **Medium** — mid-size production org or integration sandbox. Moderate custom metadata footprint, tens of custom objects, moderate record and event-log volume.
+- **Large** — full enterprise production org. Extensive customisation and managed packages, high record counts, heavy EventLogFile and technical-object volume.
 
 ---
 
