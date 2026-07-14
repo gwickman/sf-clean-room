@@ -4,7 +4,7 @@
 
 Please do **not** report security vulnerabilities through public GitHub issues.
 
-Instead, open a [GitHub Security Advisory](../../security/advisories/new) (private by default) or email the maintainers directly. We will acknowledge the report within 72 hours and aim to release a fix within 30 days for confirmed vulnerabilities.
+Instead, open a [GitHub Security Advisory](../../security/advisories/new) (private by default) or email the maintainers directly. Reports are reviewed and triaged on a **best-effort basis**. This project is maintained without any service-level commitment and is distributed "as is" under the Apache License 2.0 (see [Use and responsibility](README.md#use-and-responsibility)); no acknowledgement time, fix time, or resolution is guaranteed. Confirmed vulnerabilities are prioritised by severity as maintainer time allows, and responsible disclosure is appreciated.
 
 ## What to report
 
@@ -27,4 +27,4 @@ sf-clean-room is a local CLI. It does not run as a service, does not expose a ne
 
 ## Supported versions
 
-Only the current release on `main` is supported. We do not backport fixes to older versions.
+Fixes are only ever applied to the current `main`; earlier versions are not maintained and receive no backports.
